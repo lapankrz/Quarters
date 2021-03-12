@@ -1497,14 +1497,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2c7fc20a1c046c4892ccd1a51dce31a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  roadWidth: 20
+  roadWidth: 22
   roadThickness: 0.05
+  sidewalkThickness: 0.5
   nearbyRoadThreshold: 14
   minRoadLength: 14
   minSnapAngle: 15
   minSnapDistance: 20
-  carWidthPercentage: 0.7
+  carWidthPercentage: 0.5
   roadMaterial: {fileID: 2100000, guid: 6ff73f6125e60f14fb62458c0b967885, type: 2}
+  pavementMaterial: {fileID: 2100000, guid: 9cb31d0cba0e6e54aade00d9db309366, type: 2}
 --- !u!4 &2106266908
 Transform:
   m_ObjectHideFlags: 0

@@ -384,7 +384,7 @@ public class BuildingController : MonoBehaviour
     }
     
     // duplicates mesh vertices so that every triangle has unique ones - necessary for flat shading
-    void CreateUniqueVertices(Vector3[] vertices, int[] triangles, out Vector3[] newVertices, out int[] newTriangles)
+    public void CreateUniqueVertices(Vector3[] vertices, int[] triangles, out Vector3[] newVertices, out int[] newTriangles)
     {
         List<Vector3> newVerts = new List<Vector3>();
         List<int> newTris = new List<int>();

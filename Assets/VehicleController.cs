@@ -113,17 +113,16 @@ public class VehicleController : MonoBehaviour
             dir = (nodePath[0].Position - startCenter).normalized;
         }
         var right = new Vector3(dir.z, dir.y, -dir.x);
-        pos1 = startCenter + right * roadWidth * roadController.carWidthPercentage / 4;
-        path.Add(pos1);
+        var startPos = startCenter + right * roadWidth * roadController.carWidthPercentage / 4;
+        path.Add(startPos);
 
-        if (nodePath.Count > 0)
+        if (nodePath != null && nodePath.Count > 0)
         {
             pos2 = nodePath[0].Position - dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
             path.Add(pos2);
-        }
 
-        if (nodePath != null)
-        {
+            Vector3 lastPos1 = startPos;
+            Vector3 lastPos2 = pos2;
             for (int i = 0; i < nodePath.Count; ++i)
             {
                 Vector3 currPos = nodePath[i].Position;
@@ -132,13 +131,20 @@ public class VehicleController : MonoBehaviour
                 right = new Vector3(dir.z, dir.y, -dir.x);
 
                 pos1 = currPos + dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
-                path.Add(pos1);
+                pos2 = nextPos - dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
 
+                Vector3 intersection = roadController.GetIntersectionOfLines(lastPos1, lastPos2, pos1, pos2);
+                var points = roadController.GetNPointsOnBezierCurve(lastPos2, intersection, pos1, 20);
+                path.AddRange(points);
+
+                path.Add(pos1);
                 if (i < nodePath.Count - 1)
                 {
-                    pos2 = nextPos - dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
                     path.Add(pos2);
                 }
+
+                lastPos1 = pos1;
+                lastPos2 = pos2;
             }
         }
         else

@@ -7,7 +7,8 @@ public class FollowPathScript : MonoBehaviour
     public Building start, end;
     private List<Vector3> path;
     private float movementSpeed;
-    private float lastDist = Mathf.Infinity;
+    private float timer;
+    private Vector3 prevPos;
 
     public void Init(Building start, Building end, List<Vector3> path, float movementSpeed)
     {
@@ -15,6 +16,8 @@ public class FollowPathScript : MonoBehaviour
         this.end = end;
         this.path = path;
         this.movementSpeed = movementSpeed;
+        this.timer = 0;
+        this.prevPos = start.entryPoint;
     }
 
     void Start()
@@ -33,19 +36,22 @@ public class FollowPathScript : MonoBehaviour
         }
         else
         {
-            Vector3 movementDir = (path[0] - transform.position).normalized;
-            transform.rotation = Quaternion.LookRotation(movementDir);
-            float dist = (path[0] - transform.position).magnitude;
-            transform.position += movementDir * movementSpeed * Time.deltaTime;
-            if (dist < 0.1f || lastDist < dist)
+            Vector3 movementDir = (path[0] - prevPos).normalized;
+            if (movementDir != new Vector3())
             {
-                transform.position = path[0];
-                path.RemoveAt(0);
-                lastDist = Mathf.Infinity;
+                transform.rotation = Quaternion.LookRotation(movementDir);
+            }
+            float dist = (path[0] - prevPos).magnitude;
+            timer += Time.deltaTime * movementSpeed;
+            if (transform.position != path[0])
+            {
+                transform.position = Vector3.Lerp(prevPos, path[0], timer / dist);
             }
             else
             {
-                lastDist = dist;
+                timer = 0;
+                prevPos = path[0];
+                path.RemoveAt(0);
             }
         }
     }

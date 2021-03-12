@@ -8,20 +8,41 @@ public class Road : MonoBehaviour
     public RoadNode startNode;
     public RoadNode endNode;
     PlotController plotController;
+    RoadController roadController;
+    BuildingController buildingController;
     public List<Plot> leftPlots = new List<Plot>();
     public List<Plot> rightPlots = new List<Plot>();
+    public Vector3 leftStartSideWalk;
+    public Vector3 rightStartSideWalk;
+    public Vector3 leftEndSideWalk;
+    public Vector3 rightEndSideWalk;
 
     public void Init(RoadNode start, RoadNode end)
     {
+        roadController = FindObjectOfType<RoadController>();
         startNode = start;
         startNode.AddOutgoingRoad(this);
         endNode = end;
         endNode.AddOutgoingRoad(this);
+        CalculateSidewalkEnds();
+        CreateSidewalk();
+    }
+
+    public void CalculateSidewalkEnds()
+    {
+        Vector3 dir = GetDirectionVector().normalized;
+        Vector3 right = new Vector3(dir.z, dir.y, -dir.x) * roadController.roadWidth * roadController.carWidthPercentage / 2f;
+        leftStartSideWalk = startNode.Position - right;
+        leftEndSideWalk = endNode.Position - right;
+        rightStartSideWalk = startNode.Position + right;
+        rightEndSideWalk = endNode.Position + right;
     }
 
     void Start()
     {
         plotController = FindObjectOfType<PlotController>();
+        roadController = FindObjectOfType<RoadController>();
+        buildingController = FindObjectOfType<BuildingController>();
     }
 
     void Update()
@@ -57,6 +78,66 @@ public class Road : MonoBehaviour
         this.rightPlots = new List<Plot>();
     }
 
+    public void ClearSidewalk(bool left = true, bool right = true, bool leftStartCurve = true, bool leftEndCurve = true,
+        bool rightStartCurve = true, bool rightEndCurve = true)
+    {
+        for (int i = transform.childCount - 1; i >= 0; --i)
+        {
+            var child = transform.GetChild(i).gameObject;
+            if ((left && child.name == "LeftSidewalk") ||
+                (right && child.name == "RightSidewalk") ||
+                (leftStartCurve && child.name == "LeftStartSidewalkCurve") ||
+                (rightStartCurve && child.name == "RightStartSidewalkCurve") ||
+                (leftEndCurve && child.name == "LeftEndSidewalkCurve") ||
+                (rightEndCurve && child.name == "RightEndSidewalkCurve"))
+            {
+                DestroyImmediate(child);
+            }
+
+        }
+    }
+
+    public void CreateSidewalk()
+    {
+        roadController = FindObjectOfType<RoadController>();
+        Vector3 right = GetRightVector() * roadController.roadWidth * (1f - roadController.carWidthPercentage) / 4f; ;
+        Vector3 start = leftStartSideWalk - right;
+        Vector3 end = leftEndSideWalk - right;
+
+        float length = (end - start).magnitude;
+        GameObject sidewalk = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        sidewalk.name = "LeftSidewalk";
+        Vector3 position = (start + end) / 2;
+        sidewalk.transform.position = position;
+        Vector3 direction = end - start;
+        if (direction != Vector3.zero)
+        {
+            Quaternion rotation = Quaternion.LookRotation(direction) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
+            sidewalk.transform.rotation = rotation;
+        }
+        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, roadController.roadWidth * (1 - roadController.carWidthPercentage) / 2);
+        sidewalk.GetComponent<MeshRenderer>().material = roadController.pavementMaterial;
+        sidewalk.transform.parent = gameObject.transform;
+
+        start = rightStartSideWalk + right;
+        end = rightEndSideWalk + right;
+
+        length = (end - start).magnitude;
+        sidewalk = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        sidewalk.name = "RightSidewalk";
+        position = (start + end) / 2;
+        sidewalk.transform.position = position;
+        direction = end - start;
+        if (direction != Vector3.zero)
+        {
+            Quaternion rotation = Quaternion.LookRotation(direction) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
+            sidewalk.transform.rotation = rotation;
+        }
+        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, roadController.roadWidth * (1 - roadController.carWidthPercentage) / 2);
+        sidewalk.GetComponent<MeshRenderer>().material = roadController.pavementMaterial;
+        sidewalk.transform.parent = gameObject.transform;
+    }
+
     public List<Plot> GetAllPlots()
     {
         var allPlots = new List<Plot>();
@@ -65,13 +146,19 @@ public class Road : MonoBehaviour
         return allPlots;
     }
 
+    public Vector3 GetRightVector()
+    {
+        var dir = GetDirectionVector().normalized;
+        return new Vector3(dir.z, dir.y, -dir.x);
+    }
+
     /// <summary>
     /// Finds neighboring roads with the smallest or greatest angle from node
     /// </summary>
     /// <param name="fromStartNode">True if from startNode, false if from endNode</param>
     /// <param name="leftmost">Finds road with the greatest angle if true, or with the smallest angle otherwise</param>
     /// <returns></returns>
-    public Road GetNeighboringRoad(bool fromStartNode, bool leftmost)
+    public Road GetNeighboringRoad(bool fromStartNode, bool leftmost, bool mustbeSameSide = true)
     {
         List<Road> roads = new List<Road>();
         Vector3 roadVector = GetDirectionVector();
@@ -79,6 +166,11 @@ public class Road : MonoBehaviour
         foreach (var road in node.Roads)
         {
             roads.Add(road);
+        }
+
+        if (roads.Count <= 1)
+        {
+            return null;
         }
 
         roads.Sort((r1, r2) =>
@@ -107,6 +199,10 @@ public class Road : MonoBehaviour
             roadVector = -roadVector;
         }
         Road foundRoad = leftmost ? prevRoad : nextRoad;
+        if (!mustbeSameSide)
+        {
+            return foundRoad;
+        }
         Vector3 foundVector = foundRoad.GetDirectionVector();
         if (foundRoad.endNode == node)
         {
@@ -142,6 +238,22 @@ public class Road : MonoBehaviour
         }
     }
 
+    public bool IsParallelTo(Road road)
+    {
+        Vector3 p0 = startNode.Position;
+        Vector3 p1 = endNode.Position;
+        Vector3 q0 = road.startNode.Position;
+        Vector3 q1 = road.endNode.Position;
+
+        float A1 = p1.z - p0.z;
+        float B1 = p0.x - p1.x;
+
+        float A2 = q1.z - q0.z;
+        float B2 = q0.x - q1.x;
+
+        float delta = A1 * B2 - A2 * B1;
+        return Mathf.Abs(delta) < 0.01f;
+    }
     
     // returns distance to the closest point on road
     public float GetDistanceToPoint(Vector3 point)
@@ -170,11 +282,20 @@ public class Road : MonoBehaviour
         return start + Vector3.Project(point - start, end - start);
     }
 
-    // returns angle between 2 roads
+    // returns angle in degrees between 2 roads
     public float GetAngleBetweenRoad(Road road)
     {
         Vector3 vec1 = GetDirectionVector();
         Vector3 vec2 = road.GetDirectionVector();
+        RoadNode common = GetCommonRoadNode(road);
+        if (common == road.endNode)
+        {
+            vec2 = -vec2;
+        }
+        if (common == endNode)
+        {
+            vec1 = -vec1;
+        }
         return Vector3.Angle(vec1, vec2);
     }
 
