@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public enum ChosenEditor { None, BuildRoads, Bulldoze, ZoneBuildings }
+public enum ChosenEditor { None, BuildRoads, Bulldoze, ZoneBuildings, PlaceProps }
 
 public class UIController : MonoBehaviour
 {
@@ -19,6 +19,7 @@ public class UIController : MonoBehaviour
     BuildingController buildingController;
     ZoningController zoningController;
     CameraController cameraController;
+    PropController propController;
 
     void Start()
     {
@@ -29,6 +30,7 @@ public class UIController : MonoBehaviour
         buildingController = FindObjectOfType<BuildingController>();
         zoningController = FindObjectOfType<ZoningController>();
         cameraController = FindObjectOfType<CameraController>();
+        propController = FindObjectOfType<PropController>();
     }
 
     void Update()
@@ -177,6 +179,24 @@ public class UIController : MonoBehaviour
         }
     }
 
+    public void OnPropPlacingClick()
+    {
+        if (chosenEditor == ChosenEditor.PlaceProps)
+        {
+            eventSystem.SetSelectedGameObject(null);
+            DisableAllEditors();
+        }
+        else
+        {
+            if (chosenEditor != ChosenEditor.None)
+            {
+                DisableAllEditors();
+            }
+            chosenEditor = ChosenEditor.PlaceProps;
+            propController.EnableEditor();
+        }
+    }
+
     void DisableAllEditors()
     {
         cursorSpriteSize = new Vector3(0, 0, 0);
@@ -187,5 +207,6 @@ public class UIController : MonoBehaviour
         roadController.DisableEditor();
         bulldozeController.DisableEditor();
         zoningController.DisableEditor();
+        propController.DisableEditor();
     }
 }

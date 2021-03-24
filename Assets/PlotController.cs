@@ -23,9 +23,9 @@ public class PlotController : MonoBehaviour
 
     // Creates plots for both sides of the road
     // recursively fixes plots for neighboring roads
-    public void CreatePlots(Road road, int roadWidth)
+    public void CreatePlots(Road road)
     {
-        CreatePlotsOnRoad(road, true, roadWidth);
+        CreatePlotsOnRoad(road, true);
 
         //left side - forward
         Road currRoad = road.GetNeighboringRoad(false, true);
@@ -37,14 +37,14 @@ public class PlotController : MonoBehaviour
             Road lastRoad = currRoad;
             if (flipped)
             {
-                CreatePlotsOnRoad(currRoad, false, roadWidth);
+                CreatePlotsOnRoad(currRoad, false);
                 currRoad = currRoad.GetNeighboringRoad(true, true);
                 if (currRoad != null)
                     flipped = lastRoad.startNode == currRoad.endNode;
             }
             else
             {
-                CreatePlotsOnRoad(currRoad, true, roadWidth);
+                CreatePlotsOnRoad(currRoad, true);
                 currRoad = currRoad.GetNeighboringRoad(false, true);
                 if (currRoad != null)
                     flipped = lastRoad.endNode == currRoad.endNode;
@@ -60,21 +60,21 @@ public class PlotController : MonoBehaviour
             Road lastRoad = currRoad;
             if (flipped)
             {
-                CreatePlotsOnRoad(currRoad, false, roadWidth);
+                CreatePlotsOnRoad(currRoad, false);
                 currRoad = currRoad.GetNeighboringRoad(false, false);
                 if (currRoad != null)
                     flipped = lastRoad.endNode == currRoad.startNode;
             }
             else
             {
-                CreatePlotsOnRoad(currRoad, true, roadWidth);
+                CreatePlotsOnRoad(currRoad, true);
                 currRoad = currRoad.GetNeighboringRoad(true, false);
                 if (currRoad != null)
                     flipped = lastRoad.startNode == currRoad.startNode;
             }
         }
 
-        CreatePlotsOnRoad(road, false, roadWidth);
+        CreatePlotsOnRoad(road, false);
 
         //right side - forward
         currRoad = road.GetNeighboringRoad(false, false);
@@ -86,14 +86,14 @@ public class PlotController : MonoBehaviour
             Road lastRoad = currRoad;
             if (flipped)
             {
-                CreatePlotsOnRoad(currRoad, true, roadWidth);
+                CreatePlotsOnRoad(currRoad, true);
                 currRoad = currRoad.GetNeighboringRoad(true, false);
                 if (currRoad != null)
                     flipped = lastRoad.startNode == currRoad.endNode;
             }
             else
             {
-                CreatePlotsOnRoad(currRoad, false, roadWidth);
+                CreatePlotsOnRoad(currRoad, false);
                 currRoad = currRoad.GetNeighboringRoad(false, false);
                 if (currRoad != null)
                     flipped = lastRoad.endNode == currRoad.endNode;
@@ -109,14 +109,14 @@ public class PlotController : MonoBehaviour
             Road lastRoad = currRoad;
             if (flipped)
             {
-                CreatePlotsOnRoad(currRoad, true, roadWidth);
+                CreatePlotsOnRoad(currRoad, true);
                 currRoad = currRoad.GetNeighboringRoad(false, true);
                 if (currRoad != null)
                     flipped = lastRoad.endNode == currRoad.startNode;
             }
             else
             {
-                CreatePlotsOnRoad(currRoad, false, roadWidth);
+                CreatePlotsOnRoad(currRoad, false);
                 currRoad = currRoad.GetNeighboringRoad(true, true);
                 if (currRoad != null)
                     flipped = lastRoad.startNode == currRoad.startNode;
@@ -125,9 +125,9 @@ public class PlotController : MonoBehaviour
     }
 
     // Creates plots on road on one side
-    public void CreatePlotsOnRoad(Road road, bool onLeft, int roadWidth)
+    public void CreatePlotsOnRoad(Road road, bool onLeft)
     {
-        (bool prevCorner, bool nextCorner) = CalculateCorners(road, onLeft, roadWidth, out Vector3[] outerCorners, out Vector3[] innerCorners);
+        (bool prevCorner, bool nextCorner) = CalculateCorners(road, onLeft, out Vector3[] outerCorners, out Vector3[] innerCorners);
         Vector3 start = outerCorners[0];
         Vector3 end = outerCorners[1];
         if (onLeft)
@@ -443,12 +443,12 @@ public class PlotController : MonoBehaviour
     /// </summary>
     /// <param name="road">Road that contains the plots</param>
     /// <param name="onLeft">Whether the plots are on the left</param>
-    /// <param name="roadWidth">Width of the road</param>
     /// <param name="outerCorners">Corners adjacent to road</param>
     /// <param name="innerCorners">Corners adjacent to the courtyard (inside the block)</param>
     /// <returns>Tuple about whether there is a corner building by the start node and by the end node</returns>
-    public (bool, bool) CalculateCorners(Road road, bool onLeft, int roadWidth, out Vector3[] outerCorners, out Vector3[] innerCorners)
+    public (bool, bool) CalculateCorners(Road road, bool onLeft, out Vector3[] outerCorners, out Vector3[] innerCorners)
     {
+        float roadWidth = road.width;
         Road prevRoad, nextRoad;
         if (onLeft)
         {
@@ -464,10 +464,9 @@ public class PlotController : MonoBehaviour
         outerCorners = new Vector3[2];
         innerCorners = new Vector3[2];
 
-        float radius = roadWidth / 2;
         Vector3 currVector = road.GetDirectionVector();
 
-        Vector3 nonCornerOffset = Vector3.Cross(currVector.normalized, Vector3.up); // right
+        Vector3 nonCornerOffset = Vector3.Cross(currVector.normalized, Vector3.up).normalized; // right
         if (!onLeft)
         {
             nonCornerOffset = -nonCornerOffset;
@@ -481,13 +480,34 @@ public class PlotController : MonoBehaviour
                 prevVector = -prevVector;
             }
 
-            float prevAngle = (Vector3.Angle(currVector, prevVector) / 2) * Mathf.PI / 180;
+            float prevAngle = (Vector3.Angle(currVector.normalized, prevVector.normalized) / 2) * Mathf.PI / 180;
             if (!Mathf.Approximately(Mathf.Abs(prevAngle), Mathf.PI / 2))
             {
                 float sine1 = Mathf.Sin(prevAngle);
-                float offsetAmount1 = radius / sine1;
                 Vector3 offset = ((currVector.normalized + prevVector.normalized) / 2).normalized;
-                Vector3 vertex1 = road.startNode.Position + offset * offsetAmount1;
+                prevAngle = (180 - Vector3.Angle(currVector.normalized, prevVector.normalized)) * Mathf.PI / 180;
+                float r1 = road.width / 2, r2 = prevRoad.width / 2; // r1 - radius of road with smaller width
+                if (r1 > r2)
+                {
+                    var tmp = r1;
+                    r1 = r2;
+                    r2 = tmp;
+                }
+                float offsetValue = (r2 * Mathf.Cos(prevAngle) - r1) / Mathf.Sin(prevAngle);
+                Vector3 vertex1 = road.startNode.Position + nonCornerOffset * r2 - currVector.normalized * offsetValue;
+                if (road.width < prevRoad.width)
+                {
+                    Vector3 side = prevRoad.GetRightVector();
+                    if (prevRoad.endNode == road.startNode)
+                    {
+                        side = -side;
+                    }
+                    if (!onLeft)
+                    {
+                        side = -side;
+                    }
+                    vertex1 = road.startNode.Position + side * r2 - prevVector.normalized * offsetValue;
+                }
                 outerCorners[0] = vertex1;
                 float offsetAmount2 = buildingDepth / sine1;
                 var innerCorner1 = vertex1 + offset * offsetAmount2;
@@ -495,14 +515,14 @@ public class PlotController : MonoBehaviour
             }
             else
             {
-                outerCorners[0] = road.startNode.Position + nonCornerOffset * radius;
+                outerCorners[0] = road.startNode.Position + nonCornerOffset * road.width / 2;
                 innerCorners[0] = outerCorners[0] + nonCornerOffset * buildingDepth;
                 prevRoad = null;
             }
         }
         else
         {
-            outerCorners[0] = road.startNode.Position + nonCornerOffset * radius;
+            outerCorners[0] = road.startNode.Position + nonCornerOffset * road.width / 2;
             innerCorners[0] = outerCorners[0] + nonCornerOffset * buildingDepth;
         }
 
@@ -515,13 +535,35 @@ public class PlotController : MonoBehaviour
                 nextVector = -nextVector;
             }
 
-            float nextAngle = (Vector3.Angle(-currVector, nextVector) / 2) * Mathf.PI / 180;
+            float nextAngle = (Vector3.Angle(-currVector.normalized, nextVector.normalized) / 2) * Mathf.PI / 180;
             if (!Mathf.Approximately(Mathf.Abs(nextAngle), Mathf.PI / 2))
             {
                 float sine2 = Mathf.Sin(nextAngle);
-                float offsetAmount1 = radius / sine2;
                 Vector3 offset = ((-currVector.normalized + nextVector.normalized) / 2).normalized;
-                Vector3 vertex2 = road.endNode.Position + offset * offsetAmount1;
+                nextAngle = (180 - Vector3.Angle(-currVector.normalized, nextVector.normalized)) * Mathf.PI / 180;
+                float r1 = road.width / 2; // r1 - radius of road with smaller width
+                float r2 = nextRoad.width / 2;
+                if (r1 > r2)
+                {
+                    var tmp = r1;
+                    r1 = r2;
+                    r2 = tmp;
+                }
+                float offsetValue = (r2 * Mathf.Cos(nextAngle) - r1) / Mathf.Sin(nextAngle);
+                Vector3 vertex2 = road.endNode.Position + nonCornerOffset * r2 + currVector.normalized * offsetValue;
+                if (road.width < nextRoad.width)
+                {
+                    Vector3 side = nextRoad.GetRightVector();
+                    if (nextRoad.endNode == road.endNode)
+                    {
+                        side = -side;
+                    }
+                    if (onLeft)
+                    {
+                        side = -side;
+                    }
+                    vertex2 = road.endNode.Position + side * r2 - nextVector.normalized * offsetValue;
+                }
                 outerCorners[1] = vertex2;
                 float offsetAmount2 = buildingDepth / sine2;
                 var innerCorner2 = vertex2 + offset * offsetAmount2;
@@ -529,14 +571,14 @@ public class PlotController : MonoBehaviour
             }
             else
             {
-                outerCorners[1] = road.endNode.Position + nonCornerOffset * radius;
+                outerCorners[1] = road.endNode.Position + nonCornerOffset * road.width / 2;
                 innerCorners[1] = outerCorners[1] + nonCornerOffset * buildingDepth;
                 nextRoad = null;
             }
         }
         else
         {
-            outerCorners[1] = road.endNode.Position + nonCornerOffset * radius;
+            outerCorners[1] = road.endNode.Position + nonCornerOffset * road.width / 2;
             innerCorners[1] = outerCorners[1] + nonCornerOffset * buildingDepth;
         }
 

@@ -97,7 +97,6 @@ public class VehicleController : MonoBehaviour
         {
             return null;
         }
-        float roadWidth = roadController.roadWidth;
         List<Vector3> path = new List<Vector3>();
         Vector3 startCenter = start.plot.adjacentRoad.GetClosestPointOnRoad(start.entryPoint);
         Vector3 endCenter = end.plot.adjacentRoad.GetClosestPointOnRoad(end.entryPoint);
@@ -113,12 +112,14 @@ public class VehicleController : MonoBehaviour
             dir = (nodePath[0].Position - startCenter).normalized;
         }
         var right = new Vector3(dir.z, dir.y, -dir.x);
-        var startPos = startCenter + right * roadWidth * roadController.carWidthPercentage / 4;
+        float roadWidth = start.plot.adjacentRoad.width;
+        float carWidthPercentage = start.plot.adjacentRoad.carWidthPercentage;
+        var startPos = startCenter + right * roadWidth * carWidthPercentage / 4;
         path.Add(startPos);
 
         if (nodePath != null && nodePath.Count > 0)
         {
-            pos2 = nodePath[0].Position - dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
+            pos2 = nodePath[0].Position - dir * roadWidth / 2 + right * roadWidth * carWidthPercentage / 4;
             path.Add(pos2);
 
             Vector3 lastPos1 = startPos;
@@ -130,10 +131,23 @@ public class VehicleController : MonoBehaviour
                 dir = (nextPos - currPos).normalized;
                 right = new Vector3(dir.z, dir.y, -dir.x);
 
-                pos1 = currPos + dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
-                pos2 = nextPos - dir * roadWidth / 2 + right * roadWidth * roadController.carWidthPercentage / 4;
+                if (i == nodePath.Count - 1)
+                {
+                    roadWidth = end.plot.adjacentRoad.width;
+                    carWidthPercentage = end.plot.adjacentRoad.carWidthPercentage;
+                }
+                else
+                {
+                    Road r = nodePath[i].GetRoadToNode(nodePath[i + 1]);
+                    roadWidth = r.width;
+                    carWidthPercentage = r.carWidthPercentage;
+                }
+
+                pos1 = currPos + dir * roadWidth / 2 + right * roadWidth * carWidthPercentage / 4;
+                pos2 = nextPos - dir * roadWidth / 2 + right * roadWidth * carWidthPercentage / 4;
 
                 Vector3 intersection = roadController.GetIntersectionOfLines(lastPos1, lastPos2, pos1, pos2);
+
                 var points = roadController.GetNPointsOnBezierCurve(lastPos2, intersection, pos1, 20);
                 path.AddRange(points);
 
@@ -156,7 +170,7 @@ public class VehicleController : MonoBehaviour
         dir = (endCenter - lastNodePos).normalized;
         right = new Vector3(dir.z, dir.y, -dir.x);
 
-        Vector3 endPos = endCenter + right * roadWidth * roadController.carWidthPercentage / 4;
+        Vector3 endPos = endCenter + right * roadWidth * carWidthPercentage / 4;
         path.Add(endPos);
         path.Add(end.entryPoint);
 

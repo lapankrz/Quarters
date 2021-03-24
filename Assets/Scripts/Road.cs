@@ -2,9 +2,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class Road : MonoBehaviour
 {
+    public float width = 22;
+    public float carWidthPercentage = 0.5f;
     public RoadNode startNode;
     public RoadNode endNode;
     PlotController plotController;
@@ -17,8 +20,10 @@ public class Road : MonoBehaviour
     public Vector3 leftEndSideWalk;
     public Vector3 rightEndSideWalk;
 
-    public void Init(RoadNode start, RoadNode end)
+    public void Init(RoadNode start, RoadNode end, float width = 22, float carWidthPercentage = 0.5f)
     {
+        this.width = width;
+        this.carWidthPercentage = carWidthPercentage;
         roadController = FindObjectOfType<RoadController>();
         startNode = start;
         startNode.AddOutgoingRoad(this);
@@ -30,13 +35,26 @@ public class Road : MonoBehaviour
 
     public void CalculateSidewalkEnds()
     {
+        CalculateStartSidewalkBounds();
+        CalculateEndSidewalkBounds();
+    }
+
+    public void CalculateStartSidewalkBounds()
+    {
         Vector3 dir = GetDirectionVector().normalized;
-        Vector3 right = new Vector3(dir.z, dir.y, -dir.x) * roadController.roadWidth * roadController.carWidthPercentage / 2f;
+        Vector3 right = new Vector3(dir.z, dir.y, -dir.x) * width * carWidthPercentage / 2f;
         leftStartSideWalk = startNode.Position - right;
-        leftEndSideWalk = endNode.Position - right;
         rightStartSideWalk = startNode.Position + right;
+    }
+
+    public void CalculateEndSidewalkBounds()
+    {
+        Vector3 dir = GetDirectionVector().normalized;
+        Vector3 right = new Vector3(dir.z, dir.y, -dir.x) * width * carWidthPercentage / 2f;
+        leftEndSideWalk = endNode.Position - right;
         rightEndSideWalk = endNode.Position + right;
     }
+
 
     void Start()
     {
@@ -97,10 +115,13 @@ public class Road : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Creates GameObjects for left and right middle parts of the sidewalk (along road)
+    /// </summary>
     public void CreateSidewalk()
     {
         roadController = FindObjectOfType<RoadController>();
-        Vector3 right = GetRightVector() * roadController.roadWidth * (1f - roadController.carWidthPercentage) / 4f; ;
+        Vector3 right = GetRightVector() * width * (1f - carWidthPercentage) / 4f; ;
         Vector3 start = leftStartSideWalk - right;
         Vector3 end = leftEndSideWalk - right;
 
@@ -115,7 +136,7 @@ public class Road : MonoBehaviour
             Quaternion rotation = Quaternion.LookRotation(direction) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
             sidewalk.transform.rotation = rotation;
         }
-        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, roadController.roadWidth * (1 - roadController.carWidthPercentage) / 2);
+        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, width * (1 - carWidthPercentage) / 2);
         sidewalk.GetComponent<MeshRenderer>().material = roadController.pavementMaterial;
         sidewalk.transform.parent = gameObject.transform;
 
@@ -133,7 +154,7 @@ public class Road : MonoBehaviour
             Quaternion rotation = Quaternion.LookRotation(direction) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
             sidewalk.transform.rotation = rotation;
         }
-        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, roadController.roadWidth * (1 - roadController.carWidthPercentage) / 2);
+        sidewalk.transform.localScale = new Vector3(length, roadController.sidewalkThickness, width * (1 - carWidthPercentage) / 2);
         sidewalk.GetComponent<MeshRenderer>().material = roadController.pavementMaterial;
         sidewalk.transform.parent = gameObject.transform;
     }

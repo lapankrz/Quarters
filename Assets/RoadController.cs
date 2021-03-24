@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using Random = UnityEngine.Random;
 
 public class RoadController : MonoBehaviour
 {
@@ -132,14 +133,14 @@ public class RoadController : MonoBehaviour
                     {
                         Destroy(tempRoadMiddle);
                     }
-                    tempRoadMiddle = CreateRoadMiddle(startNode.Position, endNode.Position);
+                    tempRoadMiddle = CreateRoadMiddle(startNode.Position, endNode.Position, roadWidth);
                     tempRoadMiddle.transform.parent = currentRoad.transform;
 
                     if (tempRoadEnd != null)
                     {
                         Destroy(tempRoadEnd);
                     }
-                    tempRoadEnd = CreateRoadEnd(endNode.Position);
+                    tempRoadEnd = CreateRoadEnd(endNode.Position, roadWidth);
                     tempRoadEnd.transform.parent = currentRoad.transform;
                 }
 
@@ -154,7 +155,12 @@ public class RoadController : MonoBehaviour
         }
     }
 
-    // Handle mouse click in road placing mode
+    #region Road Creation
+
+    /// <summary>
+    /// Handles mouse click in road placing mode
+    /// </summary>
+    /// <param name="hitPoint">Raycast hit point</param>
     public void HandleMouseClick(Vector3 hitPoint)
     {
         if (placingNodes)
@@ -167,25 +173,123 @@ public class RoadController : MonoBehaviour
         }
     }
 
-    public Vector3 GetPointOnBezierCurve(Vector3 p0, Vector3 p1, Vector3 p2, float t)
+    /// <summary>
+    /// Starts drawing new road
+    /// </summary>
+    /// <param name="hitPoint"></param>
+    public void StartRoad(Vector3 hitPoint)
     {
-        return Vector3.Lerp(Vector3.Lerp(p0, p1, t), Vector3.Lerp(p1, p2, t), t);
+        roadWidth = Random.Range(15, 30);
+        carWidthPercentage = Random.Range(0.3f, 0.55f);
+        startNode = new RoadNode(hitPoint);
+        dividingStartRoad = false;
+        RoadNode node = FindNearbyRoadEnds(hitPoint, nearbyRoadThreshold);
+        if (node != null)
+        {
+            startNode = node;
+        }
+        else
+        {
+            (Road road, Vector3 intersection) = FindNearbyRoadSegments(hitPoint);
+            if (road != null)
+            {
+                startNode = new RoadNode(intersection);
+                dividingStartRoad = true;
+                dividedStartRoad = road;
+            }
+        }
+
+        currentRoad = new GameObject("Road");
+        currentRoad.tag = "Road";
+        var roadEnd = CreateRoadEnd(startNode.Position, roadWidth);
+        roadEnd.transform.parent = currentRoad.transform;
+
+        placingNodes = true;
     }
 
-    public List<Vector3> GetNPointsOnBezierCurve(Vector3 p0, Vector3 p1, Vector3 p2, int n)
+    /// <summary>
+    /// Ends current road segment
+    /// </summary>
+    public void EndRoad()
     {
-        List<Vector3> points = new List<Vector3>();
-        for (int i = 0; i < n; ++i)
+        Road road = currentRoad.AddComponent<Road>();
+        road.Init(startNode, endNode, roadWidth, carWidthPercentage);
+        if (road.GetLength() > minRoadLength)
         {
-            float t = i * 1f / (n - 1);
-            Vector3 point = GetPointOnBezierCurve(p0, p1, p2, t);
-            points.Add(point);
+            Roads.Add(road);
+            plotController.CreatePlots(road);
+            tempRoadEnd = null;
+            tempRoadMiddle = null;
+            placingNodes = false;
         }
-        return points;
+
+        if (dividingStartRoad)
+        {
+            DivideRoadInTwo(dividedStartRoad, startNode);
+        }
+        if (dividingEndRoad)
+        {
+            DivideRoadInTwo(dividedEndRoad, endNode);
+        }
+
+        plotController.EnablePlotOverlay();
+
+        DrawCurvesOnRoadNode(startNode);
+        DrawCurvesOnRoadNode(endNode);
     }
+
+
+
+    /// <summary>
+    /// Splits a road in two in the position of newNode
+    /// </summary>
+    /// <param name="oldRoad">Road to split</param>
+    /// <param name="newNode">Node where split happens</param>
+    public void DivideRoadInTwo(Road oldRoad, RoadNode newNode)
+    {
+        GameObject roadObject1 = CreateWholeRoad(oldRoad.startNode.Position, newNode.Position, oldRoad.width);
+        Road road1 = roadObject1.AddComponent<Road>();
+        road1.Init(oldRoad.startNode, newNode, oldRoad.width, oldRoad.carWidthPercentage);
+        road1.startNode.Roads.Remove(oldRoad);
+
+        GameObject roadObject2 = CreateWholeRoad(newNode.Position, oldRoad.endNode.Position, oldRoad.width);
+        Road road2 = roadObject2.AddComponent<Road>();
+        road2.Init(newNode, oldRoad.endNode, oldRoad.width, oldRoad.carWidthPercentage);
+        road2.endNode.Roads.Remove(oldRoad);
+
+        DrawCurvesOnRoadNode(road1.startNode);
+        DrawCurvesOnRoadNode(road2.endNode);
+        DrawCurvesOnRoadNode(newNode);
+
+        oldRoad.ClearPlots();
+        Destroy(oldRoad.gameObject);
+
+        plotController.CreatePlots(road1);
+        plotController.CreatePlots(road2);
+    }
+
+    #endregion
+
+    #region Sidewalks
+
+    //TODO: Fix sidewalk curves after block vertices algorithm change
 
     public void DrawCurvesOnRoadNode(RoadNode node)
     {
+        if (node.Roads.Count == 1)
+        {
+            Road road = node.Roads[0];
+            if (node == road.startNode)
+            {
+                road.CalculateStartSidewalkBounds();
+            }
+            else
+            {
+                road.CalculateEndSidewalkBounds();
+            }
+            DrawCurveOnDeadendRoad(node);
+            return;
+        }
         foreach (var road1 in node.Roads)
         {
             bool fromStart1 = node == road1.startNode;
@@ -195,8 +299,8 @@ public class RoadController : MonoBehaviour
                 bool fromStart2 = node == road2.startNode;
                 int n = 10;
                 List<Vector3> points = GetBezierCurveBetweenRoads(road1, road2, n);
-                Vector3 right1 = road1.GetRightVector() * (1 - carWidthPercentage) * roadWidth / 2f;
-                Vector3 right2 = road2.GetRightVector() * (1 - carWidthPercentage) * roadWidth / 2f;
+                Vector3 right1 = road1.GetRightVector() * (1 - road1.carWidthPercentage) * road1.width / 2f;
+                Vector3 right2 = road2.GetRightVector() * (1 - road2.carWidthPercentage) * road2.width / 2f;
                 GameObject curve;
                 string curveName2;
                 if (fromStart1)
@@ -233,7 +337,7 @@ public class RoadController : MonoBehaviour
                         road2.leftStartSideWalk = points[n - 1];
                         curve = CreateSidewalkCurves(road1.leftEndSideWalk, road2.leftStartSideWalk,
                             road1.leftEndSideWalk - right1, road2.leftStartSideWalk - right2,
-                            road1.GetDirectionVector(), road2.GetDirectionVector());
+                            road1.GetDirectionVector(), -road2.GetDirectionVector());
                         curveName2 = "LeftStartSidewalkCurve";
                     }
                     else
@@ -257,10 +361,106 @@ public class RoadController : MonoBehaviour
             }
         }
     }
+    
+    public Vector3 GetPointOnBezierCurve(Vector3 p0, Vector3 p1, Vector3 p2, float t)
+    {
+        return Vector3.Lerp(Vector3.Lerp(p0, p1, t), Vector3.Lerp(p1, p2, t), t);
+    }
 
+    public List<Vector3> GetNPointsOnBezierCurve(Vector3 p0, Vector3 p1, Vector3 p2, int n)
+    {
+        List<Vector3> points = new List<Vector3>();
+        for (int i = 0; i < n; ++i)
+        {
+            float t = i * 1f / (n - 1);
+            Vector3 point = GetPointOnBezierCurve(p0, p1, p2, t);
+            points.Add(point);
+        }
+        return points;
+    }
+
+    public void DrawCurveOnDeadendRoad(RoadNode node)
+    {
+        Road road = node.Roads[0];
+        if (node == road.startNode)
+        {
+            road.ClearSidewalk(true, true, true, false, true, false);
+            var dir = road.GetDirectionVector().normalized;
+            var right = road.GetRightVector();
+            var leftCurve = CreateSidewalkCurves(road.startNode.Position - right * road.width / 2, road.startNode.Position - dir * road.width / 2,
+                road.startNode.Position - right * road.width * road.carWidthPercentage / 2, road.startNode.Position - dir * road.width * road.carWidthPercentage / 2,
+                -dir, -right);
+            leftCurve.name = "LeftStartSidewalkCurve";
+            leftCurve.transform.parent = road.gameObject.transform;
+
+            var rightCurve = CreateSidewalkCurves(road.startNode.Position - dir * road.width / 2, road.startNode.Position + right * road.width / 2, 
+                road.startNode.Position - dir * road.width * road.carWidthPercentage / 2, road.startNode.Position + right * road.width * road.carWidthPercentage / 2,
+                right, -dir);
+            rightCurve.name = "RightStartSidewalkCurve";
+            rightCurve.transform.parent = road.gameObject.transform;
+        }
+        else
+        {
+            road.ClearSidewalk(true, true, false, true, false, true);
+            var dir = road.GetDirectionVector().normalized;
+            var right = road.GetRightVector();
+            var leftCurve = CreateSidewalkCurves(road.endNode.Position + dir * road.width / 2, road.endNode.Position - right * road.width / 2,
+                road.endNode.Position + dir * road.width * road.carWidthPercentage / 2, road.endNode.Position - right * road.width * road.carWidthPercentage / 2,
+                -right, dir);
+            leftCurve.name = "RightEndSidewalkCurve";
+            leftCurve.transform.parent = road.gameObject.transform;
+
+            var rightCurve = CreateSidewalkCurves(road.endNode.Position + right * road.width / 2, road.endNode.Position + dir * road.width / 2,
+                road.endNode.Position + right * road.width * road.carWidthPercentage / 2, road.endNode.Position + dir * road.width * road.carWidthPercentage / 2,
+                 dir, right);
+            rightCurve.name = "RightEndSidewalkCurve";
+            rightCurve.transform.parent = road.gameObject.transform;
+        }
+
+        road.CreateSidewalk();
+    }
+    
     public GameObject CreateSidewalkCurves(Vector3 outside1, Vector3 outside2, Vector3 inside1, Vector3 inside2, Vector3 dir1, Vector3 dir2)
     {
         int n = 10;
+
+        var side1 = outside2 - outside1;
+        var side2 = inside2 - outside1;
+        var cross = Vector3.Cross(side1, side2).normalized;
+        if (cross.y > 0.1f)
+        {
+            //var tmp = outside1;
+            //outside1 = outside2;
+            //outside2 = tmp;
+
+            //tmp = inside1;
+            //inside1 = inside2;
+            //inside2 = tmp;
+
+            //tmp = dir1;
+            //dir1 = dir2;
+            //dir2 = tmp;
+
+            //var tmp = outside1;
+            //outside1 = inside1;
+            //inside1 = tmp;
+
+            //tmp = outside2;
+            //outside2 = inside2;
+            //inside2 = tmp;
+
+            //var obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            //obj.transform.position = outside1;
+
+            //obj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            //obj.transform.position = inside1;
+
+            //obj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            //obj.transform.position = outside2;
+
+            //obj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            //obj.transform.position = inside2;
+        }
 
         var outsideIntersect = GetPointOfIntersection(outside1, outside2, dir1, dir2);
         var outsidePoints = GetNPointsOnBezierCurve(outside1, outsideIntersect, outside2, n);
@@ -334,26 +534,12 @@ public class RoadController : MonoBehaviour
         return curve;
     }
 
-    public Vector3 GetPointOfIntersection(Vector3 p1, Vector3 p2, Vector3 dir1, Vector3 dir2)
-    {
-        Vector3 p1End = p1 + dir1; // another point in line p1->n1
-        Vector3 p2End = p2 + dir2; // another point in line p2->n2
-
-        float m1 = (p1End.z - p1.z) / (p1End.x - p1.x); // slope of line p1->n1
-        float m2 = (p2End.z - p2.z) / (p2End.x - p2.x); // slope of line p2->n2
-
-        float b1 = p1.z - m1 * p1.x; // y-intercept of line p1->n1
-        float b2 = p2.z - m2 * p2.x; // y-intercept of line p2->n2
-
-        float px = (b2 - b1) / (m1 - m2); // collision x
-        float pz = m1 * px + b1; // collision y
-
-        return new Vector3(px, 0, pz); // return statement
-    }
+    
 
     // Get curve on intersection divided into n points
     public List<Vector3> GetBezierCurveBetweenRoads(Road r1, Road r2, int n)
     {
+        float width = Mathf.Max(r1.width, r2.width);
         RoadNode node = r1.GetCommonRoadNode(r2);
         if (node == null)
         {
@@ -361,6 +547,8 @@ public class RoadController : MonoBehaviour
         }
         float angle = r1.GetAngleBetweenRoad(r2);
         float offset;
+
+        //TODO: rethink offset values depending on angle
         if (Mathf.Abs(180 - angle) < 1)
         {
             offset = 0.5f;
@@ -380,8 +568,8 @@ public class RoadController : MonoBehaviour
             dir1 = -dir1;
         }
         Vector3 right1 = new Vector3(dir1.z, dir1.y, -dir1.x);
-        Vector3 p0 = node.Position - dir1 * roadWidth * offset - right1 * carWidthPercentage * roadWidth / 2f;
-        Vector3 other0 = (r1.startNode.Position + r1.endNode.Position) / 2 - right1 * carWidthPercentage * roadWidth / 2f;
+        Vector3 p0 = node.Position - dir1 * width * offset - right1 * r1.carWidthPercentage * r1.width / 2f;
+        Vector3 other0 = (r1.startNode.Position + r1.endNode.Position) / 2 - right1 * r1.carWidthPercentage * r1.width / 2f;
 
         Vector3 dir2 = r2.GetDirectionVector().normalized;
         if (node == r2.startNode)
@@ -389,10 +577,9 @@ public class RoadController : MonoBehaviour
             dir2 = -dir2;
         }
         Vector3 right2 = new Vector3(dir2.z, dir2.y, -dir2.x);
-        Vector3 p2 = node.Position - dir2 * roadWidth * offset + right2 * carWidthPercentage * roadWidth / 2f;
-        Vector3 other2 = (r2.startNode.Position + r2.endNode.Position) / 2 + right2 * carWidthPercentage * roadWidth / 2f;
+        Vector3 p2 = node.Position - dir2 * width * offset + right2 * r2.carWidthPercentage * r2.width / 2f;
+        Vector3 other2 = (r2.startNode.Position + r2.endNode.Position) / 2 + right2 * r2.carWidthPercentage * r2.width / 2f;
 
-        //Vector3 p1 = GetIntersectionOfLines(other0, p0, p2, other2);
         Vector3 p1 = GetPointOfIntersection(p0, p2, dir1, dir2);
 
         if (LinesAreParallel(other0, p0, p2, other2))
@@ -408,6 +595,8 @@ public class RoadController : MonoBehaviour
 
         return GetNPointsOnBezierCurve(p0, p1, p2, n);
     }
+
+    #endregion
 
     public bool LinesAreParallel(Vector3 p0, Vector3 p1, Vector3 q0, Vector3 q1)
     {
@@ -444,87 +633,27 @@ public class RoadController : MonoBehaviour
         return new Vector3(x, 0.01f, z);
     }
 
-    // end current road segment
-    public void EndRoad()
+    public Vector3 GetPointOfIntersection(Vector3 p1, Vector3 p2, Vector3 dir1, Vector3 dir2)
     {
-        Road road = currentRoad.AddComponent<Road>();
-        road.Init(startNode, endNode);
-        if (road.GetLength() > minRoadLength)
+        float angle = Vector3.Angle(dir1, dir2);
+        if (Mathf.Approximately(angle, 180) || Mathf.Approximately(angle, 0) || Mathf.Approximately(angle, 360))
         {
-            Roads.Add(road);
-            plotController.CreatePlots(road, roadWidth);
-            tempRoadEnd = null;
-            tempRoadMiddle = null;
-            placingNodes = false;
+            return (p1 + p2) / 2;
         }
 
-        if (dividingStartRoad)
-        {
-            DivideRoadInTwo(dividedStartRoad, startNode);
-        }
-        if (dividingEndRoad)
-        {
-            DivideRoadInTwo(dividedEndRoad, endNode);
-        }
+        Vector3 p1End = p1 + dir1; // another point in line p1->n1
+        Vector3 p2End = p2 + dir2; // another point in line p2->n2
 
-        plotController.EnablePlotOverlay();
+        float m1 = (p1End.z - p1.z) / (p1End.x - p1.x); // slope of line p1->n1
+        float m2 = (p2End.z - p2.z) / (p2End.x - p2.x); // slope of line p2->n2
 
-        //test
-        DrawCurvesOnRoadNode(startNode);
-        DrawCurvesOnRoadNode(endNode);
-    }
+        float b1 = p1.z - m1 * p1.x; // y-intercept of line p1->n1
+        float b2 = p2.z - m2 * p2.x; // y-intercept of line p2->n2
 
-    // start drawing new road
-    public void StartRoad(Vector3 hitPoint)
-    {
-        startNode = new RoadNode(hitPoint);
-        dividingStartRoad = false;
-        RoadNode node = FindNearbyRoadEnds(hitPoint, nearbyRoadThreshold);
-        if (node != null)
-        {
-            startNode = node;
-        }
-        else
-        {
-            (Road road, Vector3 intersection) = FindNearbyRoadSegments(hitPoint);
-            if (road != null)
-            {
-                startNode = new RoadNode(intersection);
-                dividingStartRoad = true;
-                dividedStartRoad = road;
-            }
-        }
+        float px = (b2 - b1) / (m1 - m2); // collision x
+        float pz = m1 * px + b1; // collision y
 
-        currentRoad = new GameObject("Road");
-        currentRoad.tag = "Road";
-        var roadEnd = CreateRoadEnd(startNode.Position);
-        roadEnd.transform.parent = currentRoad.transform;
-
-        placingNodes = true;
-    }
-
-    // splits a road in two in the position of newNode
-    public void DivideRoadInTwo(Road oldRoad, RoadNode newNode)
-    {
-        GameObject roadObject1 = CreateWholeRoad(oldRoad.startNode.Position, newNode.Position);
-        Road road1 = roadObject1.AddComponent<Road>();
-        road1.Init(oldRoad.startNode, newNode);
-        road1.startNode.Roads.Remove(oldRoad);
-
-        GameObject roadObject2 = CreateWholeRoad(newNode.Position, oldRoad.endNode.Position);
-        Road road2 = roadObject2.AddComponent<Road>();
-        road2.Init(newNode, oldRoad.endNode);
-        road2.endNode.Roads.Remove(oldRoad);
-
-        DrawCurvesOnRoadNode(road1.startNode);
-        DrawCurvesOnRoadNode(road2.endNode);
-        DrawCurvesOnRoadNode(newNode);
-
-        oldRoad.ClearPlots();
-        Destroy(oldRoad.gameObject);
-
-        plotController.CreatePlots(road1, roadWidth);
-        plotController.CreatePlots(road2, roadWidth);
+        return new Vector3(px, 0, pz);
     }
 
     // returns road segment that's closest to position
@@ -555,7 +684,9 @@ public class RoadController : MonoBehaviour
     {
         Road road = Roads.Find(r => r.gameObject == gameObject);
         road.startNode.Roads.Remove(road);
+        DrawCurvesOnRoadNode(road.startNode);
         road.endNode.Roads.Remove(road);
+        DrawCurvesOnRoadNode(road.endNode);
         Roads.Remove(road);
 
         foreach (var plot in road.leftPlots)
@@ -569,11 +700,11 @@ public class RoadController : MonoBehaviour
 
         foreach (Road r in road.startNode.Roads)
         {
-            plotController.CreatePlots(r, roadWidth);
+            plotController.CreatePlots(r);
         }
         foreach (Road r in road.endNode.Roads)
         {
-            plotController.CreatePlots(r, roadWidth);
+            plotController.CreatePlots(r);
         }
 
         Destroy(gameObject);
@@ -638,20 +769,20 @@ public class RoadController : MonoBehaviour
         }
     }
 
-    public GameObject CreateWholeRoad(Vector3 startNode, Vector3 endNode)
+    public GameObject CreateWholeRoad(Vector3 startNode, Vector3 endNode, float width)
     {
         GameObject road = new GameObject("Road");
         road.tag = "Road";
-        var start = CreateRoadEnd(startNode);
+        var start = CreateRoadEnd(startNode, width);
         start.transform.parent = road.transform;
-        var end = CreateRoadEnd(endNode);
+        var end = CreateRoadEnd(endNode, width);
         end.transform.parent = road.transform;
-        var middle = CreateRoadMiddle(startNode, endNode);
+        var middle = CreateRoadMiddle(startNode, endNode, width);
         middle.transform.parent = road.transform;
         return road;
     }
 
-    GameObject CreateRoadMiddle(Vector3 startNode, Vector3 endNode)
+    GameObject CreateRoadMiddle(Vector3 startNode, Vector3 endNode, float width)
     {
         float length = (endNode - startNode).magnitude;
         GameObject roadMiddle = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -664,16 +795,16 @@ public class RoadController : MonoBehaviour
             Quaternion rotation = Quaternion.LookRotation(direction) * Quaternion.FromToRotation(Vector3.right, Vector3.forward);
             roadMiddle.transform.rotation = rotation;
         }
-        roadMiddle.transform.localScale = new Vector3(length, roadThickness, roadWidth);
+        roadMiddle.transform.localScale = new Vector3(length, roadThickness, width);
         roadMiddle.GetComponent<MeshRenderer>().material = roadMaterial;
         return roadMiddle;
     }
 
-    GameObject CreateRoadEnd(Vector3 position)
+    GameObject CreateRoadEnd(Vector3 position, float width)
     {
         GameObject roadStart = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         roadStart.name = "RoadEnd";
-        roadStart.transform.localScale = new Vector3(roadWidth, roadThickness / 2, roadWidth);
+        roadStart.transform.localScale = new Vector3(width, roadThickness / 2, width);
         roadStart.transform.position = position;
         roadStart.GetComponent<MeshRenderer>().material = roadMaterial;
         return roadStart;
