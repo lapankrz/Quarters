@@ -26,107 +26,128 @@ public class PlotController : MonoBehaviour
     public void CreatePlots(Road road)
     {
         CreatePlotsOnRoad(road, true);
-
-        //left side - forward
-        Road currRoad = road.GetNeighboringRoad(false, true);
-        bool flipped = false;
-        if (currRoad != null)
-            flipped = road.endNode == currRoad.endNode;
-        while (currRoad != null && currRoad != road)
-        {
-            Road lastRoad = currRoad;
-            if (flipped)
-            {
-                CreatePlotsOnRoad(currRoad, false);
-                currRoad = currRoad.GetNeighboringRoad(true, true);
-                if (currRoad != null)
-                    flipped = lastRoad.startNode == currRoad.endNode;
-            }
-            else
-            {
-                CreatePlotsOnRoad(currRoad, true);
-                currRoad = currRoad.GetNeighboringRoad(false, true);
-                if (currRoad != null)
-                    flipped = lastRoad.endNode == currRoad.endNode;
-            }
-        }
-
-        //left side - backwards
-        currRoad = road.GetNeighboringRoad(true, false);
-        if (currRoad != null)
-            flipped = road.startNode == currRoad.startNode;
-        while (currRoad != null && currRoad != road)
-        {
-            Road lastRoad = currRoad;
-            if (flipped)
-            {
-                CreatePlotsOnRoad(currRoad, false);
-                currRoad = currRoad.GetNeighboringRoad(false, false);
-                if (currRoad != null)
-                    flipped = lastRoad.endNode == currRoad.startNode;
-            }
-            else
-            {
-                CreatePlotsOnRoad(currRoad, true);
-                currRoad = currRoad.GetNeighboringRoad(true, false);
-                if (currRoad != null)
-                    flipped = lastRoad.startNode == currRoad.startNode;
-            }
-        }
-
         CreatePlotsOnRoad(road, false);
 
-        //right side - forward
-        currRoad = road.GetNeighboringRoad(false, false);
-        flipped = false;
-        if (currRoad != null)
-            flipped = road.endNode == currRoad.endNode;
-        while (currRoad != null && currRoad != road)
-        {
-            Road lastRoad = currRoad;
-            if (flipped)
-            {
-                CreatePlotsOnRoad(currRoad, true);
-                currRoad = currRoad.GetNeighboringRoad(true, false);
-                if (currRoad != null)
-                    flipped = lastRoad.startNode == currRoad.endNode;
-            }
-            else
-            {
-                CreatePlotsOnRoad(currRoad, false);
-                currRoad = currRoad.GetNeighboringRoad(false, false);
-                if (currRoad != null)
-                    flipped = lastRoad.endNode == currRoad.endNode;
-            }
-        }
+        Road r = road.GetNeighboringRoad(true, true);
+        if (r != null)
+            CreatePlotsOnRoad(r, road.startNode == r.startNode);
 
-        //right side - backwards
-        currRoad = road.GetNeighboringRoad(true, true);
-        if (currRoad != null)
-            flipped = road.startNode == currRoad.startNode;
-        while (currRoad != null && currRoad != road)
-        {
-            Road lastRoad = currRoad;
-            if (flipped)
-            {
-                CreatePlotsOnRoad(currRoad, true);
-                currRoad = currRoad.GetNeighboringRoad(false, true);
-                if (currRoad != null)
-                    flipped = lastRoad.endNode == currRoad.startNode;
-            }
-            else
-            {
-                CreatePlotsOnRoad(currRoad, false);
-                currRoad = currRoad.GetNeighboringRoad(true, true);
-                if (currRoad != null)
-                    flipped = lastRoad.startNode == currRoad.startNode;
-            }
-        }
+        r = road.GetNeighboringRoad(true, false);
+        if (r != null)
+            CreatePlotsOnRoad(r, road.startNode == r.endNode);
+
+        r = road.GetNeighboringRoad(false, true);
+        if (r != null)
+            CreatePlotsOnRoad(r, road.endNode == r.startNode);
+
+        r = road.GetNeighboringRoad(false, false);
+        if (r != null)
+            CreatePlotsOnRoad(r, road.endNode == r.endNode);
+
+        ////left side - forward
+        //Road currRoad = road.GetNeighboringRoad(false, true);
+        //bool flipped = false;
+        //if (currRoad != null)
+        //    flipped = road.endNode == currRoad.endNode;
+        //while (currRoad != null && currRoad != road)
+        //{
+        //    Road lastRoad = currRoad;
+        //    if (flipped)
+        //    {
+        //        CreatePlotsOnRoad(currRoad, false);
+        //        currRoad = currRoad.GetNeighboringRoad(true, true);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.startNode == currRoad.endNode;
+        //    }
+        //    else
+        //    {
+        //        CreatePlotsOnRoad(currRoad, true);
+        //        currRoad = currRoad.GetNeighboringRoad(false, true);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.endNode == currRoad.endNode;
+        //    }
+        //}
+
+        ////left side - backwards
+        //currRoad = road.GetNeighboringRoad(true, false);
+        //if (currRoad != null)
+        //    flipped = road.startNode == currRoad.startNode;
+        //while (currRoad != null && currRoad != road)
+        //{
+        //    Road lastRoad = currRoad;
+        //    if (flipped)
+        //    {
+        //        CreatePlotsOnRoad(currRoad, false);
+        //        currRoad = currRoad.GetNeighboringRoad(false, false);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.endNode == currRoad.startNode;
+        //    }
+        //    else
+        //    {
+        //        CreatePlotsOnRoad(currRoad, true);
+        //        currRoad = currRoad.GetNeighboringRoad(true, false);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.startNode == currRoad.startNode;
+        //    }
+        //}
+
+        //CreatePlotsOnRoad(road, false);
+
+        ////right side - forward
+        //currRoad = road.GetNeighboringRoad(false, false);
+        //flipped = false;
+        //if (currRoad != null)
+        //    flipped = road.endNode == currRoad.endNode;
+        //while (currRoad != null && currRoad != road)
+        //{
+        //    Road lastRoad = currRoad;
+        //    if (flipped)
+        //    {
+        //        CreatePlotsOnRoad(currRoad, true);
+        //        currRoad = currRoad.GetNeighboringRoad(true, false);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.startNode == currRoad.endNode;
+        //    }
+        //    else
+        //    {
+        //        CreatePlotsOnRoad(currRoad, false);
+        //        currRoad = currRoad.GetNeighboringRoad(false, false);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.endNode == currRoad.endNode;
+        //    }
+        //}
+
+        ////right side - backwards
+        //currRoad = road.GetNeighboringRoad(true, true);
+        //if (currRoad != null)
+        //    flipped = road.startNode == currRoad.startNode;
+        //while (currRoad != null && currRoad != road)
+        //{
+        //    Road lastRoad = currRoad;
+        //    if (flipped)
+        //    {
+        //        CreatePlotsOnRoad(currRoad, true);
+        //        currRoad = currRoad.GetNeighboringRoad(false, true);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.endNode == currRoad.startNode;
+        //    }
+        //    else
+        //    {
+        //        CreatePlotsOnRoad(currRoad, false);
+        //        currRoad = currRoad.GetNeighboringRoad(true, true);
+        //        if (currRoad != null)
+        //            flipped = lastRoad.startNode == currRoad.startNode;
+        //    }
+        //}
     }
 
     // Creates plots on road on one side
     public void CreatePlotsOnRoad(Road road, bool onLeft)
     {
+        if (road == null)
+        {
+            return;
+        }
         (bool prevCorner, bool nextCorner) = CalculateCorners(road, onLeft, out Vector3[] outerCorners, out Vector3[] innerCorners);
         Vector3 start = outerCorners[0];
         Vector3 end = outerCorners[1];

@@ -16,6 +16,8 @@ public class RoadController : MonoBehaviour
     public float minSnapAngle = 15;
     public float minSnapDistance = 20;
     public float carWidthPercentage = 0.5f;
+    public bool trees = false;
+    public float treeDistance = 10f;
     public Material roadMaterial;
     public Material pavementMaterial;
 
@@ -44,12 +46,14 @@ public class RoadController : MonoBehaviour
     private bool editorEnabled;
     PlotController plotController;
     BuildingController buildingController;
+    PropController propController;
 
     void Start()
     {
         editorEnabled = false;
         plotController = FindObjectOfType<PlotController>();
         buildingController = FindObjectOfType<BuildingController>();
+        propController = FindObjectOfType<PropController>();
     }
 
     void Update()
@@ -179,8 +183,6 @@ public class RoadController : MonoBehaviour
     /// <param name="hitPoint"></param>
     public void StartRoad(Vector3 hitPoint)
     {
-        roadWidth = Random.Range(15, 30);
-        carWidthPercentage = Random.Range(0.3f, 0.55f);
         startNode = new RoadNode(hitPoint);
         dividingStartRoad = false;
         RoadNode node = FindNearbyRoadEnds(hitPoint, nearbyRoadThreshold);
@@ -236,6 +238,14 @@ public class RoadController : MonoBehaviour
 
         DrawCurvesOnRoadNode(startNode);
         DrawCurvesOnRoadNode(endNode);
+
+        if (trees)
+        {
+            AddTrees(road, treeDistance);
+        }
+
+        FixTrees(startNode);
+        FixTrees(endNode);
     }
 
 
@@ -260,6 +270,14 @@ public class RoadController : MonoBehaviour
         DrawCurvesOnRoadNode(road1.startNode);
         DrawCurvesOnRoadNode(road2.endNode);
         DrawCurvesOnRoadNode(newNode);
+
+        if (oldRoad.hasTrees)
+        {
+            road1.hasTrees = road2.hasTrees = true;
+            road1.treeDistance = road2.treeDistance = oldRoad.treeDistance;
+            AddTrees(road1, oldRoad.treeDistance);
+            AddTrees(road2, oldRoad.treeDistance);
+        }
 
         oldRoad.ClearPlots();
         Destroy(oldRoad.gameObject);
@@ -594,6 +612,76 @@ public class RoadController : MonoBehaviour
         }
 
         return GetNPointsOnBezierCurve(p0, p1, p2, n);
+    }
+
+    #endregion
+
+    #region Trees
+
+    public void AddTrees(Road road, float treeDistance)
+    {
+        float planterWidth = propController.planter.transform.localScale.x;
+        Vector3 dir = road.GetDirectionVector().normalized;
+        Vector3 right = road.GetRightVector();
+        float sideOffset = 1.5f * (planterWidth / 2);
+        Vector3 leftStart = road.leftStartSideWalk - right * sideOffset;
+        Vector3 rightStart = road.rightStartSideWalk + right * sideOffset;
+
+        GameObject trees = new GameObject("Trees");
+
+        float dist = (road.leftEndSideWalk - road.leftStartSideWalk).magnitude;
+        int n = Mathf.RoundToInt(dist / treeDistance);
+        float alongOffset = dist / n;
+        for (int i = 0; i <= n; ++i)
+        {
+            Vector3 leftPos = leftStart + i * dir * alongOffset;
+            var planter = propController.getPlanterObject();
+            var tree = propController.getTreeObject();
+            tree.transform.position = leftPos;
+            planter.transform.position = new Vector3(leftPos.x, sidewalkThickness / 2f + 0.05f, leftPos.z);
+            planter.transform.parent = tree.transform.parent = trees.transform;
+        }
+
+        dist = (road.rightEndSideWalk - road.rightStartSideWalk).magnitude;
+        n = Mathf.RoundToInt(dist / treeDistance);
+        alongOffset = dist / n;
+        for (int i = 0; i <= n; ++i)
+        {
+            Vector3 rightPos = rightStart + i * dir * alongOffset;
+            var planter = propController.getPlanterObject();
+            var tree = propController.getTreeObject();
+            tree.transform.position = rightPos;
+            planter.transform.position = new Vector3(rightPos.x, sidewalkThickness / 2f + 0.05f, rightPos.z);
+            planter.transform.parent = tree.transform.parent = trees.transform;
+        }
+
+        trees.transform.parent = road.gameObject.transform;
+        road.hasTrees = true;
+        road.treeDistance = treeDistance;
+    }
+
+    public void FixTrees(RoadNode node)
+    {
+        foreach (var road in node.Roads)
+        {
+            if (road.hasTrees)
+            {
+                RemoveTrees(road);
+                AddTrees(road, road.treeDistance);
+            }
+        }
+    }
+
+    public void RemoveTrees(Road road)
+    {
+        for (int i = road.transform.childCount - 1; i >= 0; --i)
+        {
+            var child = road.transform.GetChild(i).gameObject;
+            if (child.name == "Trees")
+            {
+                DestroyImmediate(child);
+            }
+        }
     }
 
     #endregion

@@ -7,6 +7,7 @@ public class PropController : MonoBehaviour
 {
     GameObject currentProp;
     public GameObject tree;
+    public GameObject planter;
     float currentScale;
 
     private bool editorEnabled;
@@ -35,18 +36,31 @@ public class PropController : MonoBehaviour
                     if (!EventSystem.current.IsPointerOverGameObject())
                     {
                         CreateTree();
+                        currentProp.transform.position = hitInfo.point;
                     }
                 }
             }
         }
     }
 
-    public void CreateTree()
+    void CreateTree()
     {
-        currentProp = Instantiate(tree);
-        currentProp.transform.localScale = Vector3.one * Random.Range(1.15f, 1.6f);
+        currentProp = getTreeObject(); 
+    }
+
+    public GameObject getTreeObject()
+    {
+        var obj = Instantiate(tree);
+        obj.transform.localScale = Vector3.one * Random.Range(1.15f, 1.6f);
         Vector3 dir = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
-        currentProp.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+        obj.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+        return obj;
+    }
+
+    public GameObject getPlanterObject()
+    {
+        var obj = Instantiate(planter);
+        return obj;
     }
 
     public void EnableEditor()

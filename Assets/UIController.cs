@@ -21,6 +21,15 @@ public class UIController : MonoBehaviour
     CameraController cameraController;
     PropController propController;
 
+    public CanvasGroup roadOptionsPanel;
+    public Slider roadWidthSlider;
+    public Slider carWidthPercentageSlider;
+    public Slider treeDistanceSlider;
+    public Toggle treeToggle;
+    public Text roadWidthText;
+    public Text carPercentageText;
+    public Text treeDistanceText;
+
     void Start()
     {
         eventSystem = EventSystem.current;
@@ -30,7 +39,11 @@ public class UIController : MonoBehaviour
         buildingController = FindObjectOfType<BuildingController>();
         zoningController = FindObjectOfType<ZoningController>();
         cameraController = FindObjectOfType<CameraController>();
-        propController = FindObjectOfType<PropController>();
+        propController = FindObjectOfType<PropController>(); 
+        roadWidthSlider.onValueChanged.AddListener(delegate { OnRoadWidthSliderChange(); });
+        carWidthPercentageSlider.onValueChanged.AddListener(delegate { OnCarWidthPercentageSliderChange(); });
+        treeDistanceSlider.onValueChanged.AddListener(delegate { OnTreeDistanceSliderChange(); });
+        treeToggle.onValueChanged.AddListener(delegate { OnTreeToggleChange(); });
     }
 
     void Update()
@@ -134,6 +147,7 @@ public class UIController : MonoBehaviour
             chosenEditor = ChosenEditor.BuildRoads;
             roadController.EnableEditor();
             cursorSpriteSize = new Vector3(6 * roadController.roadWidth, 6 * roadController.roadWidth, 1);
+            roadOptionsPanel.gameObject.SetActive(true);
         }
     }
 
@@ -208,5 +222,35 @@ public class UIController : MonoBehaviour
         bulldozeController.DisableEditor();
         zoningController.DisableEditor();
         propController.DisableEditor();
+
+        //hide all option panels
+        roadOptionsPanel.gameObject.SetActive(false);
+    }
+
+    public void OnRoadWidthSliderChange()
+    {
+        int value = (int)roadWidthSlider.value;
+        roadController.roadWidth = value;
+        roadWidthText.text = value.ToString();
+    }
+
+    public void OnCarWidthPercentageSliderChange()
+    {
+        float value = carWidthPercentageSlider.value;
+        roadController.carWidthPercentage = value;
+        carPercentageText.text = value.ToString("0.00");
+    }
+
+    public void OnTreeToggleChange()
+    {
+        bool value = treeToggle.isOn;
+        roadController.trees = value;
+    }
+
+    public void OnTreeDistanceSliderChange()
+    {
+        float value = treeDistanceSlider.value;
+        roadController.treeDistance = value;
+        treeDistanceText.text = value.ToString();
     }
 }

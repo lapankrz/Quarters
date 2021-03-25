@@ -8,6 +8,8 @@ public class Road : MonoBehaviour
 {
     public float width = 22;
     public float carWidthPercentage = 0.5f;
+    public bool hasTrees;
+    public float treeDistance;
     public RoadNode startNode;
     public RoadNode endNode;
     PlotController plotController;
@@ -20,10 +22,14 @@ public class Road : MonoBehaviour
     public Vector3 leftEndSideWalk;
     public Vector3 rightEndSideWalk;
 
-    public void Init(RoadNode start, RoadNode end, float width = 22, float carWidthPercentage = 0.5f)
+    public void Init(RoadNode start, RoadNode end,
+        float width = 22, float carWidthPercentage = 0.5f,
+        bool hasTrees = false, float treeDistance = 10f)
     {
         this.width = width;
         this.carWidthPercentage = carWidthPercentage;
+        this.hasTrees = hasTrees;
+        this.treeDistance = treeDistance;
         roadController = FindObjectOfType<RoadController>();
         startNode = start;
         startNode.AddOutgoingRoad(this);
