@@ -5,15 +5,18 @@ using UnityEngine;
 
 public enum RoofType { Normal, Hanseatic, Random }
 
+public enum ZoneType { Residential, Commercial, Industrial, Office, MixedUse}
+
 public class BuildingController : MonoBehaviour
 {
     public List<Material> wallMaterials;
     public List<Material> roofMaterials;
-    public float minBuildingHeight = 16;
-    public float maxBuildingHeight = 22;
-    public float minRoofHeight = 4;
-    public float maxRoofHeight = 6;
+    public int minBuildingHeight = 16;
+    public int maxBuildingHeight = 22;
+    public int minRoofHeight = 4;
+    public int maxRoofHeight = 6;
     public RoofType roofStyle = RoofType.Normal;
+    public ZoneType zoneType = ZoneType.Residential;
     RoadController RoadController { get; set; }
     PlotController PlotController { get; set; }
 
@@ -57,16 +60,22 @@ public class BuildingController : MonoBehaviour
         }
     }
 
-    public GameObject CreateSingleBuilding(Plot plot) // 4 corners of building
-{
-        Vector3[] corners = plot.corners;
+    public GameObject CreateSingleBuilding(Plot plot)
+    {
         bool isCorner = plot.isCorner;
-        float buildingHeight = Random.Range(minBuildingHeight, maxBuildingHeight);
-        float roofHeight = Random.Range(minRoofHeight, maxRoofHeight);
+        int buildingHeight = Random.Range(minBuildingHeight, maxBuildingHeight);
+        int roofHeight = Random.Range(minRoofHeight, maxRoofHeight);
         Material wallMaterial = wallMaterials[Random.Range(0, wallMaterials.Count)];
         Material roofMaterial = roofMaterials[Random.Range(0, roofMaterials.Count)];
-
         RoofType roofType = roofStyle;
+
+        return CreateSingleBuilding(plot, buildingHeight, roofHeight, wallMaterial, roofMaterial, isCorner, roofType);
+    }
+
+    public GameObject CreateSingleBuilding(Plot plot, int buildingHeight, int roofHeight,
+        Material wallMaterial, Material roofMaterial, bool isCorner, RoofType roofType)
+    {
+        Vector3[] corners = plot.corners;
         if (roofStyle == RoofType.Random)
         {
             int rand = Random.Range(0, 2);
@@ -108,7 +117,7 @@ public class BuildingController : MonoBehaviour
         windows2.transform.parent = buildingObject.transform;
 
         Building building = buildingObject.AddComponent<Building>();
-        building.Init(plot, entryPoint, roofType, buildingHeight);
+        building.Init(plot, entryPoint, roofType, buildingHeight, roofHeight, zoneType, wallMaterial, roofMaterial, isCorner);
         plot.building = building;
 
         return buildingObject;
@@ -418,6 +427,13 @@ public class BuildingController : MonoBehaviour
         {
             Destroy(building);
         }
+    }
+
+    public Building UpdateBuilding(Building b)
+    {
+        var obj = CreateSingleBuilding(b.plot, b.height, b.roofHeight, b.wallMaterial, b.roofMaterial, b.isCorner, b.roofType);
+        Destroy(b.gameObject);
+        return obj.GetComponent<Building>();
     }
 
     int[] wallsVertexLUT = { 1, 3, 0, 0, 3, 2, 2, 3, 5, 2, 5, 4, 4, 5, 6, 6, 5, 7, 6, 7, 1, 6, 1, 0, 1, 7, 5, 1, 5, 3 };

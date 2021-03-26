@@ -28,7 +28,7 @@ public class RoadController : MonoBehaviour
             return FindObjectsOfType<Road>().ToList();    
         }
     }
-    int layerMask = 1 << 8;
+    int layerMask = 1 << 8; // ground
 
     bool placingNodes;
     bool dividingStartRoad;

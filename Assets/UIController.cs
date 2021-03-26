@@ -43,6 +43,19 @@ public class UIController : MonoBehaviour
     public Text roofHeightMinText;
     public Text roofHeightMaxText;
 
+    // Building info
+    bool finishedUpdatingFields = false;
+    Building selectedBuilding;
+    public CanvasGroup buildingInfoPanel;
+    public Text inhabitantCountTitle;
+    public Text inhabitantCountText;
+    public Dropdown existingZoneTypeDropdown;
+    public Dropdown existingRoofTypeDropdown;
+    public Slider existingBuildingHeightSlider;
+    public Slider existingRoofHeightSlider;
+    public Text existingBuildingHeightText;
+    public Text existingRoofHeightText;
+
     void Start()
     {
         eventSystem = EventSystem.current;
@@ -53,13 +66,24 @@ public class UIController : MonoBehaviour
         zoningController = FindObjectOfType<ZoningController>();
         cameraController = FindObjectOfType<CameraController>();
         propController = FindObjectOfType<PropController>(); 
+
+        //road options
         roadWidthSlider.onValueChanged.AddListener(delegate { OnRoadWidthSliderChange(); });
         carWidthPercentageSlider.onValueChanged.AddListener(delegate { OnCarWidthPercentageSliderChange(); });
         treeDistanceSlider.onValueChanged.AddListener(delegate { OnTreeDistanceSliderChange(); });
         treeToggle.onValueChanged.AddListener(delegate { OnTreeToggleChange(); });
+
+        //zoning options
+        zoneTypeDropdown.onValueChanged.AddListener(delegate { OnZoneTypeChanged(); });
         roofTypeDropdown.onValueChanged.AddListener(delegate { OnRoofTypeChanged(); });
         buildingHeightSlider.OnValueChanged.AddListener(delegate { OnBuildingHeightChanged(); });
         roofHeightSlider.OnValueChanged.AddListener(delegate { OnRoofHeightChanged(); });
+
+        //building info
+        existingZoneTypeDropdown.onValueChanged.AddListener(delegate { OnExistingZoneTypeChanged(); });
+        existingRoofTypeDropdown.onValueChanged.AddListener(delegate { OnExistingRoofTypeChanged(); });
+        existingBuildingHeightSlider.onValueChanged.AddListener(delegate { OnExistingBuildingHeightChanged(); });
+        existingRoofHeightSlider.onValueChanged.AddListener(delegate { OnExistingRoofHeightChanged(); });
     }
 
     void Update()
@@ -76,6 +100,14 @@ public class UIController : MonoBehaviour
             }
         }
 
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (!EventSystem.current.IsPointerOverGameObject() && chosenEditor == ChosenEditor.None)
+            {
+                HandleMouseClick();
+            }
+        }
+
         PlaceCursorSprite();
 
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -85,6 +117,40 @@ public class UIController : MonoBehaviour
         }
 
         UnloadDistantWindows();
+    }
+
+    private void HandleMouseClick()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hitInfo;
+        if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
+        {
+            GameObject obj = hitInfo.collider.transform.root.gameObject;
+            if (obj.CompareTag("Building"))
+            {
+                ShowBuildingInfo(obj);
+            }
+            else
+            {
+                CloseAllPanels();
+            }
+        }
+    }
+
+    private void ShowBuildingInfo(GameObject obj)
+    {
+        buildingInfoPanel.gameObject.SetActive(true);
+        var building = obj.GetComponent<Building>();
+        selectedBuilding = building;
+        finishedUpdatingFields = false;
+        inhabitantCountText.text = building.inhabitantCount.ToString();
+        existingZoneTypeDropdown.value = (int)building.zoneType;
+        existingRoofTypeDropdown.value = (int)building.roofType;
+        existingBuildingHeightSlider.value = building.height;
+        existingBuildingHeightText.text = building.height.ToString();
+        existingRoofHeightSlider.value = building.roofHeight;
+        existingRoofHeightText.text = building.roofHeight.ToString();
+        finishedUpdatingFields = true;
     }
 
     public void UnloadDistantWindows()
@@ -149,6 +215,7 @@ public class UIController : MonoBehaviour
 
     public void OnBuildRoadsClick()
     {
+        CloseAllPanels();
         if (chosenEditor == ChosenEditor.BuildRoads)
         {
             eventSystem.SetSelectedGameObject(null);
@@ -174,6 +241,7 @@ public class UIController : MonoBehaviour
 
     public void OnBulldozeClick()
     {
+        CloseAllPanels();
         if (chosenEditor == ChosenEditor.Bulldoze)
         {
             eventSystem.SetSelectedGameObject(null);
@@ -192,6 +260,7 @@ public class UIController : MonoBehaviour
 
     public void OnZoneBuildingsClick()
     {
+        CloseAllPanels();
         if (chosenEditor == ChosenEditor.ZoneBuildings)
         {
             eventSystem.SetSelectedGameObject(null);
@@ -212,6 +281,7 @@ public class UIController : MonoBehaviour
 
     public void OnPropPlacingClick()
     {
+        CloseAllPanels();
         if (chosenEditor == ChosenEditor.PlaceProps)
         {
             eventSystem.SetSelectedGameObject(null);
@@ -241,8 +311,14 @@ public class UIController : MonoBehaviour
         propController.DisableEditor();
 
         //hide all option panels
+        CloseAllPanels();
+    }
+
+    void CloseAllPanels()
+    {
         roadOptionsPanel.gameObject.SetActive(false);
         zoningOptionsPanel.gameObject.SetActive(false);
+        buildingInfoPanel.gameObject.SetActive(false);
     }
 
     public void OnRoadWidthSliderChange()
@@ -272,6 +348,12 @@ public class UIController : MonoBehaviour
         treeDistanceText.text = value.ToString();
     }
 
+    public void OnZoneTypeChanged()
+    {
+        ZoneType value = (ZoneType)zoneTypeDropdown.value;
+        buildingController.zoneType = value;
+    }
+
     public void OnRoofTypeChanged()
     {
         RoofType value = (RoofType)roofTypeDropdown.value;
@@ -280,25 +362,79 @@ public class UIController : MonoBehaviour
 
     public void OnBuildingHeightChanged()
     {
-        float min = buildingHeightSlider.LowValue;
-        float max = buildingHeightSlider.HighValue;
+        int min = (int)buildingHeightSlider.LowValue;
+        int max = (int)buildingHeightSlider.HighValue;
         buildingController.minBuildingHeight = min;
         buildingController.maxBuildingHeight = max;
-        buildingHeightMinText.text = ((int)min).ToString();
-        buildingHeightMaxText.text = ((int)max).ToString();
+        buildingHeightMinText.text = min.ToString();
+        buildingHeightMaxText.text = max.ToString();
     }
 
     public void OnRoofHeightChanged()
     {
-        float min = roofHeightSlider.LowValue;
+        int min = (int)roofHeightSlider.LowValue;
         if (min == 0)
-            min -= 0.01f;
-        float max = roofHeightSlider.HighValue;
+            min -= 1;
+        int max = (int)roofHeightSlider.HighValue;
         if (max == 0)
-            max -= 0.01f;
+            max -= 1;
         buildingController.minRoofHeight = min;
         buildingController.maxRoofHeight = max;
-        roofHeightMinText.text = ((int)min).ToString();
-        roofHeightMaxText.text = ((int)max).ToString();
+        roofHeightMinText.text = min.ToString();
+        roofHeightMaxText.text = max.ToString();
+    }
+
+    public void OnExistingZoneTypeChanged()
+    {
+        if (finishedUpdatingFields)
+        {
+            var value = existingZoneTypeDropdown.value;
+            if (selectedBuilding != null)
+                selectedBuilding.zoneType = (ZoneType)value;
+            UpdateInhabitantInfo();
+        }
+    }
+
+    public void OnExistingRoofTypeChanged()
+    {
+        if (finishedUpdatingFields)
+        {
+            var value = existingRoofTypeDropdown.value;
+            if (selectedBuilding != null)
+                selectedBuilding.roofType = (RoofType)value;
+            selectedBuilding = buildingController.UpdateBuilding(selectedBuilding);
+            UpdateInhabitantInfo();
+        }
+    }
+
+    public void OnExistingBuildingHeightChanged()
+    {
+        if (finishedUpdatingFields)
+        {
+            int value = (int)existingBuildingHeightSlider.value;
+            existingBuildingHeightText.text = value.ToString();
+            if (selectedBuilding != null)
+                selectedBuilding.height = value;
+            selectedBuilding = buildingController.UpdateBuilding(selectedBuilding);
+            UpdateInhabitantInfo();
+        }
+    }
+
+    public void OnExistingRoofHeightChanged()
+    {
+        if (finishedUpdatingFields)
+        {
+            int value = (int)existingRoofHeightSlider.value;
+            existingRoofHeightText.text = value.ToString();
+            if (selectedBuilding != null)
+                selectedBuilding.roofHeight = value;
+            selectedBuilding = buildingController.UpdateBuilding(selectedBuilding);
+            UpdateInhabitantInfo();
+        }
+    }
+
+    void UpdateInhabitantInfo()
+    {
+        inhabitantCountText.text = selectedBuilding.inhabitantCount.ToString();
     }
 }
