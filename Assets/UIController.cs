@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.UI.Extensions;
 
 public enum ChosenEditor { None, BuildRoads, Bulldoze, ZoneBuildings, PlaceProps }
 
@@ -21,6 +22,7 @@ public class UIController : MonoBehaviour
     CameraController cameraController;
     PropController propController;
 
+    // Road options
     public CanvasGroup roadOptionsPanel;
     public Slider roadWidthSlider;
     public Slider carWidthPercentageSlider;
@@ -29,6 +31,17 @@ public class UIController : MonoBehaviour
     public Text roadWidthText;
     public Text carPercentageText;
     public Text treeDistanceText;
+
+    // Zoning options
+    public CanvasGroup zoningOptionsPanel;
+    public Dropdown zoneTypeDropdown;
+    public Dropdown roofTypeDropdown;
+    public RangeSlider buildingHeightSlider;
+    public RangeSlider roofHeightSlider;
+    public Text buildingHeightMinText;
+    public Text buildingHeightMaxText;
+    public Text roofHeightMinText;
+    public Text roofHeightMaxText;
 
     void Start()
     {
@@ -44,6 +57,9 @@ public class UIController : MonoBehaviour
         carWidthPercentageSlider.onValueChanged.AddListener(delegate { OnCarWidthPercentageSliderChange(); });
         treeDistanceSlider.onValueChanged.AddListener(delegate { OnTreeDistanceSliderChange(); });
         treeToggle.onValueChanged.AddListener(delegate { OnTreeToggleChange(); });
+        roofTypeDropdown.onValueChanged.AddListener(delegate { OnRoofTypeChanged(); });
+        buildingHeightSlider.OnValueChanged.AddListener(delegate { OnBuildingHeightChanged(); });
+        roofHeightSlider.OnValueChanged.AddListener(delegate { OnRoofHeightChanged(); });
     }
 
     void Update()
@@ -190,6 +206,7 @@ public class UIController : MonoBehaviour
             chosenEditor = ChosenEditor.ZoneBuildings;
             zoningController.EnableEditor();
             cursorSpriteSize = new Vector3(12 * zoningController.zoningRadius, 12 * zoningController.zoningRadius, 1);
+            zoningOptionsPanel.gameObject.SetActive(true);
         }
     }
 
@@ -225,6 +242,7 @@ public class UIController : MonoBehaviour
 
         //hide all option panels
         roadOptionsPanel.gameObject.SetActive(false);
+        zoningOptionsPanel.gameObject.SetActive(false);
     }
 
     public void OnRoadWidthSliderChange()
@@ -252,5 +270,35 @@ public class UIController : MonoBehaviour
         float value = treeDistanceSlider.value;
         roadController.treeDistance = value;
         treeDistanceText.text = value.ToString();
+    }
+
+    public void OnRoofTypeChanged()
+    {
+        RoofType value = (RoofType)roofTypeDropdown.value;
+        buildingController.roofStyle = value;
+    }
+
+    public void OnBuildingHeightChanged()
+    {
+        float min = buildingHeightSlider.LowValue;
+        float max = buildingHeightSlider.HighValue;
+        buildingController.minBuildingHeight = min;
+        buildingController.maxBuildingHeight = max;
+        buildingHeightMinText.text = ((int)min).ToString();
+        buildingHeightMaxText.text = ((int)max).ToString();
+    }
+
+    public void OnRoofHeightChanged()
+    {
+        float min = roofHeightSlider.LowValue;
+        if (min == 0)
+            min -= 0.01f;
+        float max = roofHeightSlider.HighValue;
+        if (max == 0)
+            max -= 0.01f;
+        buildingController.minRoofHeight = min;
+        buildingController.maxRoofHeight = max;
+        roofHeightMinText.text = ((int)min).ToString();
+        roofHeightMaxText.text = ((int)max).ToString();
     }
 }

@@ -3,16 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum RoofType { Hanseatic, Normal, Random }
+public enum RoofType { Normal, Hanseatic, Random }
 
 public class BuildingController : MonoBehaviour
 {
     public List<Material> wallMaterials;
     public List<Material> roofMaterials;
-    public int averageBuildingHeight = 20;
-    public float buildingHeightOffset = 3;
-    public int averageRoofHeight = 5;
-    public float roofHeightOffset = 1;
+    public float minBuildingHeight = 16;
+    public float maxBuildingHeight = 22;
+    public float minRoofHeight = 4;
+    public float maxRoofHeight = 6;
     public RoofType roofStyle = RoofType.Normal;
     RoadController RoadController { get; set; }
     PlotController PlotController { get; set; }
@@ -34,6 +34,7 @@ public class BuildingController : MonoBehaviour
     {
         RoadController = FindObjectOfType<RoadController>();
         PlotController = FindObjectOfType<PlotController>();
+        roofStyle = RoofType.Normal;
     }
 
     void Update()
@@ -60,8 +61,8 @@ public class BuildingController : MonoBehaviour
 {
         Vector3[] corners = plot.corners;
         bool isCorner = plot.isCorner;
-        float buildingHeight = averageBuildingHeight + Random.Range(-buildingHeightOffset, buildingHeightOffset+1);
-        float roofHeight = averageRoofHeight + Random.Range(-roofHeightOffset, roofHeightOffset + 1);
+        float buildingHeight = Random.Range(minBuildingHeight, maxBuildingHeight);
+        float roofHeight = Random.Range(minRoofHeight, maxRoofHeight);
         Material wallMaterial = wallMaterials[Random.Range(0, wallMaterials.Count)];
         Material roofMaterial = roofMaterials[Random.Range(0, roofMaterials.Count)];
 
