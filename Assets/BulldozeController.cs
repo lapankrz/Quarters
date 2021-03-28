@@ -8,7 +8,7 @@ public class BulldozeController : MonoBehaviour
     RoadController roadController;
     BuildingController buildingController;
     private bool editorEnabled;
-    int layerMask = ~(1 << 8); // NOT Ground
+    readonly int layerMask = ~(1 << 8); // NOT Ground
     void Start()
     {
         roadController = FindObjectOfType<RoadController>();
@@ -28,20 +28,14 @@ public class BulldozeController : MonoBehaviour
                 {
                     if (!EventSystem.current.IsPointerOverGameObject())
                     {
-                        GameObject gameObject = hitInfo.collider.gameObject;
+                        GameObject gameObject = hitInfo.collider.transform.root.gameObject;
                         string name = gameObject.name;
-                        if (name == "RoadMiddle" || name == "RoadEnd")
+                        if (name == "Road")
                         {
-                            gameObject = gameObject.transform.parent.gameObject;
                             roadController.DeleteRoad(gameObject);
                         }
                         else if (name == "Building")
                         {
-                            buildingController.DeleteBuilding(gameObject);
-                        }
-                        else if (name == "Walls" || name == "Roof")
-                        {
-                            gameObject = gameObject.transform.parent.gameObject;
                             buildingController.DeleteBuilding(gameObject);
                         }
                     }
