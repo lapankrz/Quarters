@@ -56,6 +56,10 @@ public class UIController : MonoBehaviour
     public Text existingBuildingHeightText;
     public Text existingRoofHeightText;
 
+    // Props & trees
+    public CanvasGroup propPanel;
+    public Dropdown propDropdown;
+
     void Start()
     {
         eventSystem = EventSystem.current;
@@ -84,6 +88,16 @@ public class UIController : MonoBehaviour
         existingRoofTypeDropdown.onValueChanged.AddListener(delegate { OnExistingRoofTypeChanged(); });
         existingBuildingHeightSlider.onValueChanged.AddListener(delegate { OnExistingBuildingHeightChanged(); });
         existingRoofHeightSlider.onValueChanged.AddListener(delegate { OnExistingRoofHeightChanged(); });
+
+        //props & trees
+        propDropdown.ClearOptions();
+        foreach (var obj in propController.props)
+        {
+            propDropdown.options.Add(new Dropdown.OptionData(obj.name));
+        }
+        propDropdown.onValueChanged.AddListener(delegate { OnChosenPropChanged(); });
+        propDropdown.value = 0;
+        propDropdown.RefreshShownValue();
     }
 
     void Update()
@@ -295,6 +309,7 @@ public class UIController : MonoBehaviour
             }
             chosenEditor = ChosenEditor.PlaceProps;
             propController.EnableEditor();
+            propPanel.gameObject.SetActive(true);
         }
     }
 
@@ -319,7 +334,10 @@ public class UIController : MonoBehaviour
         roadOptionsPanel.gameObject.SetActive(false);
         zoningOptionsPanel.gameObject.SetActive(false);
         buildingInfoPanel.gameObject.SetActive(false);
+        propPanel.gameObject.SetActive(false);
     }
+
+    #region Road Options
 
     public void OnRoadWidthSliderChange()
     {
@@ -347,6 +365,10 @@ public class UIController : MonoBehaviour
         roadController.treeDistance = value;
         treeDistanceText.text = value.ToString();
     }
+
+    #endregion
+
+    #region Zoning Options
 
     public void OnZoneTypeChanged()
     {
@@ -383,6 +405,10 @@ public class UIController : MonoBehaviour
         roofHeightMinText.text = min.ToString();
         roofHeightMaxText.text = max.ToString();
     }
+
+    #endregion
+
+    #region Building Customization
 
     public void OnExistingZoneTypeChanged()
     {
@@ -437,4 +463,15 @@ public class UIController : MonoBehaviour
     {
         inhabitantCountText.text = selectedBuilding.inhabitantCount.ToString();
     }
+
+    #endregion
+
+    #region Prop & Tree Options
+
+    void OnChosenPropChanged()
+    {
+        propController.SetPrefab(propDropdown.value);
+    }
+
+    #endregion
 }

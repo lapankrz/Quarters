@@ -895,6 +895,7 @@ public class RoadController : MonoBehaviour
         roadStart.transform.localScale = new Vector3(width, roadThickness / 2, width);
         roadStart.transform.position = position;
         roadStart.GetComponent<MeshRenderer>().material = roadMaterial;
+        roadStart.GetComponent<CapsuleCollider>().enabled = false;
         return roadStart;
     }
 }

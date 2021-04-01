@@ -15,7 +15,8 @@ public class TerrainController : MonoBehaviour
     public int seed;
     public Vector2 offset;
     public bool autoUpdate;
-
+    public int filterSize = 5;
+    public float coniferPercentage = 0.3f;
 
     float quadSize = 8;
     Vector3[] vertices;
@@ -24,6 +25,7 @@ public class TerrainController : MonoBehaviour
     void Start()
     {
         GenerateTerrain();
+        GenerateTrees();
     }
 
     void Update()
@@ -51,6 +53,11 @@ public class TerrainController : MonoBehaviour
 
         if (octaves < 0)
             octaves = 0;
+
+        if (filterSize % 2 == 0)
+            filterSize += 1;
+        else if (filterSize < 0)
+            filterSize = 0;
     }
 
     void GenerateTerrain()
@@ -114,15 +121,42 @@ public class TerrainController : MonoBehaviour
             }
         }
 
-        for (int i = 0, z = 0; z < zSize; z++)
+        for (int i = 0, z = 0; z <= zSize; z++)
         {
-            for (int x = 0; x < xSize; x++, i++)
+            for (int x = 0; x <= xSize; x++, i++)
             {
                 float percentage = Mathf.InverseLerp(minNoiseHeight, maxNoiseHeight, vertices[i].y);
                 if (percentage < 0.1f)
                 {
                     vertices[i].y = 0;
                 }    
+            }
+        }
+
+        int filterOffset = filterSize / 2;
+        for (int z = 0; z <= zSize; z++)
+        {
+            for (int x = 0; x <= xSize; x++)
+            {
+                float sum = 0;
+                int fields = 0;
+                for (int k = -filterOffset; k <= filterOffset; k++)
+                {
+                    for (int l = -filterOffset; l <= filterOffset; l++)
+                    {
+                        int z1 = z + k;
+                        int x1 = x + l;
+                        if (z1 >= 0 && z1 <= zSize && x1 >= 0 && x1 <= xSize)
+                        {
+                            int index = (z + k) * (xSize + 1) + (x + l);
+                            sum += vertices[index].y;
+                            fields++;
+                        }
+                    }
+                }
+                sum /= fields;
+                int ind = z * (xSize + 1) + x;
+                vertices[ind].y = sum;
             }
         }
 
@@ -149,5 +183,42 @@ public class TerrainController : MonoBehaviour
         float newX = quadSize * (x - xSize / 2);
         float newZ = quadSize * (z - xSize / 2);
         return (newX, newZ);
+    }
+
+    void GenerateTrees()
+    {
+        var propController = FindObjectOfType<PropController>();
+        int treeCount = 5000;
+        int n = 0;
+        int noiseSeed = 90000;// Random.Range(10000, 100000);
+        while (n < treeCount)
+        {
+            float x = Random.Range(0f, xSize);
+            float z = Random.Range(0f, zSize);
+            (float xPos, float zPos) = GetCoordinates(x, z);
+            int index = (int)z * (xSize + 1) + (int)x;
+            float y = vertices[index].y;
+            float val = Mathf.PerlinNoise(noiseSeed + x / 100f, noiseSeed + z / 100f);
+            float treeChance = Random.Range(0.6f, 1f) * Mathf.Clamp01((150 - y) / 150) * Mathf.Clamp01(val - 0.25f);
+            float luck = Random.Range(0f, 1f);
+            Vector3 normal = mesh.normals[index];
+            float angle = Vector3.Angle(Vector3.up, normal);
+            if (angle < 40 && (y > 5 || val < 0.15 || val > 0.85)) //(treeChance > luck)
+            {
+
+                float chance = Random.Range(0f, 1f);
+                GameObject tree;
+                if (chance < coniferPercentage)
+                {
+                    tree = propController.getConiferObject();
+                }
+                else
+                {
+                    tree = propController.getBigTreeObject();
+                }
+                tree.transform.position = new Vector3(xPos, y, zPos);
+                n++;
+            }
+        }
     }
 }

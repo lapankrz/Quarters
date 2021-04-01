@@ -33,6 +33,8 @@ public class BuildingController : MonoBehaviour
     public const float doorHeight = 3.6f;
     public const float doorWidth = 2.2f;
 
+    public GameObject testBlueprint;
+
     void Start()
     {
         RoadController = FindObjectOfType<RoadController>();
@@ -336,9 +338,23 @@ public class BuildingController : MonoBehaviour
         return triangles;
     }
 
-    // WIP: fits prefab to plot corners
-    public GameObject CreateBuildingFromBlueprint(Vector3[] corners, bool isCorner)
+    public GameObject CreateBuildingFromBlueprint(Plot plot)
     {
+        bool isCorner = plot.isCorner;
+        int buildingHeight = Random.Range(minBuildingHeight, maxBuildingHeight);
+        int roofHeight = Random.Range(minRoofHeight, maxRoofHeight);
+        Material wallMaterial = wallMaterials[Random.Range(0, wallMaterials.Count)];
+        Material roofMaterial = roofMaterials[Random.Range(0, roofMaterials.Count)];
+        RoofType roofType = roofStyle;
+
+        return CreateBuildingFromBlueprint(plot, buildingHeight, roofHeight, wallMaterial, roofMaterial, isCorner, roofType);
+    }
+
+    // WIP: fits prefab to plot corners
+    public GameObject CreateBuildingFromBlueprint(Plot plot, int buildingHeight, int roofHeight,
+        Material wallMaterial, Material roofMaterial, bool isCorner, RoofType roofType)
+    {
+        Vector3[] corners = plot.corners;
         float[] x = { corners[0].x, corners[3].x, corners[2].x, corners[1].x };
         float[] y = { corners[0].z, corners[3].z, corners[2].z, corners[1].z };
         var A = Matrix<double>.Build.DenseOfArray(new double[,] {
@@ -360,37 +376,79 @@ public class BuildingController : MonoBehaviour
             { X[6], X[7], 1 }
         });
 
-        //test
+        Mesh mesh = new Mesh();
         Material material = wallMaterials[Random.Range(0, wallMaterials.Count)];
 
-        Mesh mesh = new Mesh();
-
-        Vector3[] vertices = { new Vector3(0, 0, 1), new Vector3(1, 0, 1), new Vector3(0, 1, 1), new Vector3(1, 0, 1), new Vector3(1, 1, 1), new Vector3(0, 1, 1) };
-        Vector3[] newVertices = new Vector3[6];
-        for (int i = 0; i < 6; ++i)
+        Mesh blueprintMesh = testBlueprint.GetComponent<MeshFilter>().sharedMesh;
+        Vector3[] blueprintVertices = NormalizeBlueprintVertices(blueprintMesh.vertices);
+        Vector3[] vertices = new Vector3[blueprintMesh.vertexCount];
+        for (int i = 0; i < blueprintMesh.vertexCount; ++i)
         {
-            var vect = vertices[i];
-            var v = Vector<double>.Build.Dense(new double[] { vect.x, vect.y, 1 });
+            var vect = blueprintVertices[i];
+            var v = Vector<double>.Build.Dense(new double[] { vect.x, vect.z, 1 });
             var res = T * v;
             res /= res[2];
-            newVertices[i] = new Vector3((float)res[0], 0.1f, (float)res[1]);
+            vertices[i] = new Vector3((float)res[0], vect.y * 20f, (float)res[1]);
         }
-        int[] triangles = { 0, 2, 1, 3, 5, 4 };
-
-        mesh.vertices = newVertices;
-        mesh.triangles = triangles;
+        mesh.vertices = vertices;
+        mesh.triangles = blueprintMesh.triangles;
 
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         mesh.Optimize();
 
-        GameObject building = new GameObject("Building", typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
-        building.tag = "Building";
-        building.GetComponent<MeshFilter>().mesh = mesh;
-        building.GetComponent<MeshRenderer>().material = material;
-        building.GetComponent<MeshCollider>().sharedMesh = mesh;
+        GameObject buildingObject = new GameObject("Building", typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
+        buildingObject.tag = "Building";
+        buildingObject.GetComponent<MeshFilter>().sharedMesh = mesh;
+        buildingObject.GetComponent<MeshCollider>().sharedMesh = mesh;
 
-        return building;
+        var materialObject = Instantiate(testBlueprint);
+        buildingObject.GetComponent<MeshRenderer>().materials = materialObject.GetComponent<MeshRenderer>().materials;
+        Destroy(materialObject);
+
+        var vert = Vector<double>.Build.Dense(new double[] { 0.5, 0, 1 });
+        var result = T * vert;
+        result /= result[2];
+        var entryPoint = new Vector3((float)result[0], 0, (float)result[1]);
+
+        Building building = buildingObject.AddComponent<Building>();
+        building.Init(plot, entryPoint, roofType, buildingHeight, roofHeight, zoneType, wallMaterial, roofMaterial, isCorner);
+        plot.building = building;
+
+        return buildingObject;
+    }
+
+    Vector3[] NormalizeBlueprintVertices(Vector3[] vertices)
+    {
+        Vector3[] newVertices = new Vector3[vertices.Length];
+        float minX, minY, minZ;
+        minX = minY = minZ = float.MaxValue;
+        float maxX, maxY, maxZ;
+        maxX = maxY = maxZ = float.MinValue;
+        foreach (var v in vertices)
+        {
+            if (v.x < minX)
+                minX = v.x;
+            if (v.x > maxX)
+                maxX = v.x;
+            if (v.y < minY)
+                minY = v.y;
+            if (v.y > maxY)
+                maxY = v.y;
+            if (v.z < minZ)
+                minZ = v.z;
+            if (v.z > maxX)
+                maxZ = v.z;
+        }
+        for (int i = 0; i < vertices.Length; ++i)
+        {
+            Vector3 v = vertices[i];
+            float x = Mathf.InverseLerp(minX, maxX, v.x);
+            float y = Mathf.InverseLerp(minY, maxY, v.y);
+            float z = Mathf.InverseLerp(minZ, maxZ, v.z);
+            newVertices[i] = new Vector3(x, y, z);
+        }
+        return newVertices;
     }
     
     // duplicates mesh vertices so that every triangle has unique ones - necessary for flat shading

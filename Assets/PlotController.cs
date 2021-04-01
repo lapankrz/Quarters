@@ -6,6 +6,7 @@ public class PlotController : MonoBehaviour
 {
     public int buildingWidth = 15;
     public int buildingDepth = 20;
+    public bool fromBlueprints = false;
     BuildingController buildingController;
     RoadController roadController;
     public List<Plot> plots = new List<Plot>();
@@ -624,10 +625,14 @@ public class PlotController : MonoBehaviour
 
     public void SpawnBuilding(Plot plot)
     {
-        //fit-to-plot test
-        //GameObject building = buildingController.CreateBuildingFromBlueprint(plot.corners, plot.isCorner);
-
-        GameObject building = buildingController.CreateSingleBuilding(plot);
+        if (fromBlueprints)
+        {
+            buildingController.CreateBuildingFromBlueprint(plot);
+        }
+        else
+        {
+            buildingController.CreateSingleBuilding(plot);
+        }
     }
 
     public void EnablePlotOverlay()

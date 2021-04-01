@@ -38,6 +38,10 @@ public class BulldozeController : MonoBehaviour
                         {
                             buildingController.DeleteBuilding(gameObject);
                         }
+                        else if (gameObject.layer == LayerMask.NameToLayer("Props"))
+                        {
+                            Destroy(gameObject);
+                        }
                     }
                 }
             }

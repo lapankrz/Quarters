@@ -5,16 +5,25 @@ using UnityEngine.EventSystems;
 
 public class PropController : MonoBehaviour
 {
+    GameObject currentPrefab;
     GameObject currentProp;
     public GameObject tree;
+    public GameObject bigTree;
+    public GameObject conifer;
     public GameObject planter;
-    float currentScale;
+
+    public List<GameObject> props;
 
     private bool editorEnabled;
-    int layerMask = 1 << 8; // Ground
+    int layerMask;
+    int propLayer;
+
     void Start()
     {
         editorEnabled = false;
+        currentPrefab = props[0];
+        layerMask = ~LayerMask.GetMask("Props");
+        propLayer = LayerMask.NameToLayer("Props");
     }
 
     void Update()
@@ -27,7 +36,7 @@ public class PropController : MonoBehaviour
             {
                 if (currentProp == null)
                 {
-                    CreateTree();
+                    CreateProp();
                 }
                 currentProp.transform.position = hitInfo.point;
 
@@ -35,7 +44,7 @@ public class PropController : MonoBehaviour
                 {
                     if (!EventSystem.current.IsPointerOverGameObject())
                     {
-                        CreateTree();
+                        CreateProp();
                         currentProp.transform.position = hitInfo.point;
                     }
                 }
@@ -43,18 +52,42 @@ public class PropController : MonoBehaviour
         }
     }
 
-    void CreateTree()
+    void CreateProp()
     {
-        currentProp = getTreeObject(); 
+        currentProp = GetPropObject(currentPrefab);
+    }
+
+    public GameObject GetPropObject(GameObject prefab)
+    {
+        if (prefab != null)
+        {
+            var obj = Instantiate(prefab);
+            if (prefab != planter)
+                obj.transform.localScale = Vector3.one * Random.Range(1.15f, 1.6f);
+            Vector3 dir = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
+            obj.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            obj.layer = propLayer;
+            return obj;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public GameObject getTreeObject()
     {
-        var obj = Instantiate(tree);
-        obj.transform.localScale = Vector3.one * Random.Range(1.15f, 1.6f);
-        Vector3 dir = new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f)).normalized;
-        obj.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-        return obj;
+        return GetPropObject(tree);
+    }
+
+    public GameObject getBigTreeObject()
+    {
+        return GetPropObject(bigTree);
+    }
+
+    public GameObject getConiferObject()
+    {
+        return GetPropObject(conifer);
     }
 
     public GameObject getPlanterObject()
@@ -73,6 +106,15 @@ public class PropController : MonoBehaviour
         editorEnabled = false;
         if (currentProp != null)
         {
+            Destroy(currentProp);
+        }
+    }
+
+    public void SetPrefab(int index)
+    {
+        if (index < props.Count)
+        {
+            currentPrefab = props[index];
             Destroy(currentProp);
         }
     }

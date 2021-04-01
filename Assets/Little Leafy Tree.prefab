@@ -11,9 +11,10 @@ GameObject:
   - component: {fileID: 2654317602839607613}
   - component: {fileID: 417677970955803074}
   - component: {fileID: 2906454759442367995}
-  m_Layer: 0
-  m_Name: Tree
-  m_TagString: Untagged
+  - component: {fileID: 888033030336085539}
+  m_Layer: 9
+  m_Name: Little Leafy Tree
+  m_TagString: Prop
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -79,3 +80,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+--- !u!136 &888033030336085539
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5240443401235096857}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  m_Radius: 1.8904297
+  m_Height: 4.9507008
+  m_Direction: 1
+  m_Center: {x: 0.10087067, y: 2.475603, z: -0.120905876}
